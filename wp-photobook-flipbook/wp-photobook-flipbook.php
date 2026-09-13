@@ -300,19 +300,67 @@ window.WPPhotobookInit = function(root, leaves){
 JS;
 }
 
+/**
+ * Recursively search a parsed block tree for the first core/gallery block
+ * (it may be nested inside groups, columns, etc.).
+ */
+function wp_photobook_find_gallery_block( $blocks ) {
+	foreach ( $blocks as $block ) {
+		if ( isset( $block['blockName'] ) && 'core/gallery' === $block['blockName'] ) {
+			return $block;
+		}
+		if ( ! empty( $block['innerBlocks'] ) ) {
+			$found = wp_photobook_find_gallery_block( $block['innerBlocks'] );
+			if ( $found ) {
+				return $found;
+			}
+		}
+	}
+	return null;
+}
+
+/**
+ * Read the ordered attachment IDs out of a post's WordPress core
+ * "갤러리(Gallery)" block — no ACF (or any other plugin) required.
+ */
+function wp_photobook_ids_from_gallery_block( $post_id ) {
+	$post = $post_id ? get_post( $post_id ) : null;
+	if ( ! $post ) {
+		return array();
+	}
+
+	$blocks  = parse_blocks( $post->post_content );
+	$gallery = wp_photobook_find_gallery_block( $blocks );
+	if ( ! $gallery ) {
+		return array();
+	}
+
+	$ids = array();
+
+	// Modern gallery block (WP 5.9+): each photo is a core/image inner block.
+	if ( ! empty( $gallery['innerBlocks'] ) ) {
+		foreach ( $gallery['innerBlocks'] as $inner ) {
+			if ( isset( $inner['blockName'] ) && 'core/image' === $inner['blockName'] && ! empty( $inner['attrs']['id'] ) ) {
+				$ids[] = (int) $inner['attrs']['id'];
+			}
+		}
+	}
+
+	// Older gallery block format: a flat "ids" attribute.
+	if ( empty( $ids ) && ! empty( $gallery['attrs']['ids'] ) && is_array( $gallery['attrs']['ids'] ) ) {
+		$ids = array_map( 'intval', $gallery['attrs']['ids'] );
+	}
+
+	return $ids;
+}
+
 function wp_photobook_shortcode( $atts ) {
 	static $instance = 0;
 	static $assets_printed = false;
 
-	if ( ! function_exists( 'get_field' ) ) {
-		if ( current_user_can( 'manage_options' ) ) {
-			return '<p>' . esc_html__( '[wp_photobook] 이 숏코드를 쓰려면 ACF(Advanced Custom Fields) 플러그인이 활성화되어 있어야 합니다.', 'wp-photobook' ) . '</p>';
-		}
-		return '';
-	}
-
 	$atts = shortcode_atts(
 		array(
+			'source'         => 'auto', // auto (gallery block, then ACF) | block | acf
 			'field'          => 'photo_gallery',
 			'post_id'        => get_the_ID(),
 			'size'           => 'large',
@@ -325,31 +373,40 @@ function wp_photobook_shortcode( $atts ) {
 	);
 
 	$post_id = absint( $atts['post_id'] );
-	$field   = sanitize_key( $atts['field'] );
 	$size    = sanitize_key( $atts['size'] );
-
-	$images = get_field( $field, $post_id ? $post_id : null );
-
-	if ( empty( $images ) || ! is_array( $images ) ) {
-		if ( current_user_can( 'manage_options' ) ) {
-			return '<p>' . sprintf(
-				/* translators: %s: ACF field name */
-				esc_html__( '[wp_photobook] "%s" 갤러리 필드에 사진이 없습니다. 이 페이지에서 ACF 갤러리 필드를 먼저 채워주세요.', 'wp-photobook' ),
-				esc_html( $field )
-			) . '</p>';
-		}
-		return '';
-	}
+	$source  = in_array( $atts['source'], array( 'auto', 'block', 'acf' ), true ) ? $atts['source'] : 'auto';
 
 	$urls = array();
-	foreach ( $images as $image ) {
-		$url = wp_photobook_extract_url( $image, $size );
-		if ( $url ) {
-			$urls[] = esc_url_raw( $url );
+
+	// 1) WordPress's own (free) Gallery block — the default, no extra plugin needed.
+	if ( 'acf' !== $source ) {
+		$ids = wp_photobook_ids_from_gallery_block( $post_id ? $post_id : get_the_ID() );
+		foreach ( $ids as $id ) {
+			$url = wp_get_attachment_image_url( $id, $size );
+			if ( $url ) {
+				$urls[] = esc_url_raw( $url );
+			}
+		}
+	}
+
+	// 2) Fall back to an ACF gallery field (needs ACF PRO), if nothing found above.
+	if ( empty( $urls ) && 'block' !== $source && function_exists( 'get_field' ) ) {
+		$field  = sanitize_key( $atts['field'] );
+		$images = get_field( $field, $post_id ? $post_id : null );
+		if ( ! empty( $images ) && is_array( $images ) ) {
+			foreach ( $images as $image ) {
+				$url = wp_photobook_extract_url( $image, $size );
+				if ( $url ) {
+					$urls[] = esc_url_raw( $url );
+				}
+			}
 		}
 	}
 
 	if ( empty( $urls ) ) {
+		if ( current_user_can( 'manage_options' ) ) {
+			return '<p>' . esc_html__( '[wp_photobook] 사진을 찾을 수 없습니다. 이 페이지 본문에 워드프레스 "갤러리" 블록을 추가하고 사진을 넣어주세요.', 'wp-photobook' ) . '</p>';
+		}
 		return '';
 	}
 

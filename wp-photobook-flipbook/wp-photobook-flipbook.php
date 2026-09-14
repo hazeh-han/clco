@@ -111,7 +111,8 @@ function wp_photobook_styles() {
 	box-shadow:0 30px 56px -24px var(--wppb-shadow),0 10px 22px -12px var(--wppb-shadow),inset 0 0 0 1px var(--wppb-border);
 	transition:width .5s ease,aspect-ratio .5s ease;}
 .wppb-book.wppb-single{aspect-ratio:5/7;}
-.wppb-book.wppb-view-single{width:min(100%,320px,calc(90vh * 5 / 7));margin:0 auto;aspect-ratio:5/7;}
+.wppb-book.wppb-view-single{width:min(100%,400px,calc(90vh * 5 / 7));margin:0 auto;aspect-ratio:5/7;}
+.wppb-book.wppb-single.wppb-view-single{width:min(100%,320px,calc(90vh * 5 / 7));}
 .wppb-book.wppb-view-single .wppb-spine{display:none;}
 .wppb-book.wppb-view-single .wppb-slot-a{width:100%;}
 .wppb-book.wppb-view-single .wppb-slot-b{display:none;}

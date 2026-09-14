@@ -123,6 +123,7 @@ function wp_photobook_styles() {
 .wppb-slot{position:absolute;top:0;height:100%;overflow:hidden;background:var(--wppb-paper);}
 .wppb-slot img{width:100%;height:100%;object-fit:contain;box-sizing:border-box;padding:7%;background:var(--wppb-paper);display:block;}
 .wppb-slot img.wppb-cover-img{object-fit:cover;padding:0;}
+.wppb-slot img.wppb-blank-img{display:none;}
 .wppb-slot-a{left:0;width:50%;}
 .wppb-slot-b{right:0;width:50%;}
 .wppb-book.wppb-single .wppb-slot-a{width:100%;}
@@ -142,6 +143,7 @@ function wp_photobook_styles() {
 .wppb-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden;background:var(--wppb-paper);}
 .wppb-face img{width:100%;height:100%;object-fit:contain;box-sizing:border-box;padding:7%;background:var(--wppb-paper);display:block;}
 .wppb-face img.wppb-cover-img{object-fit:cover;padding:0;}
+.wppb-face img.wppb-blank-img{display:none;}
 .wppb-face-back{transform:rotateY(180deg);}
 .wppb-face-front::after,.wppb-face-back::after{content:'';position:absolute;inset:0;pointer-events:none;
 	background:linear-gradient(to right,rgba(0,0,0,.22),transparent 22%,transparent 78%,rgba(0,0,0,.22));}
@@ -230,10 +232,12 @@ window.WPPhotobookInit = function(root, leaves, hasCover){
 	function maxView(){ return views.length - 1; }
 
 	function isCoverLeaf(i){ return !!hasCover && (i === 0 || i === totalLeaves - 1); }
+	function isBlankLeaf(i){ return !!hasCover && (i === 1 || i === totalLeaves - 2); }
 
 	function setLeafImg(imgEl, leafIndex){
 		imgEl.src = leaves[leafIndex];
 		imgEl.classList.toggle('wppb-cover-img', isCoverLeaf(leafIndex));
+		imgEl.classList.toggle('wppb-blank-img', isBlankLeaf(leafIndex));
 	}
 
 	function applyMode(){

@@ -302,6 +302,22 @@ JS;
 }
 
 /**
+ * Turn a shortcode attribute value (attachment ID or plain URL) into a
+ * usable image URL, or '' if the value is empty/unresolvable.
+ */
+function wp_photobook_resolve_image( $value, $size ) {
+	$value = trim( (string) $value );
+	if ( '' === $value ) {
+		return '';
+	}
+	if ( ctype_digit( $value ) ) {
+		$url = wp_get_attachment_image_url( (int) $value, $size );
+		return $url ? $url : '';
+	}
+	return esc_url_raw( $value );
+}
+
+/**
  * Recursively search a parsed block tree for the first core/gallery block
  * (it may be nested inside groups, columns, etc.).
  */
@@ -365,9 +381,11 @@ function wp_photobook_shortcode( $atts ) {
 			'field'          => 'photo_gallery',
 			'post_id'        => get_the_ID(),
 			'size'           => 'large',
-			'cover'          => 'yes',
-			'cover_title'    => get_bloginfo( 'name' ),
-			'cover_subtitle' => '',
+			'cover'            => 'yes',
+			'cover_title'      => get_bloginfo( 'name' ),
+			'cover_subtitle'   => '',
+			'cover_image'      => '',
+			'back_cover_image' => '',
 		),
 		$atts,
 		'wp_photobook'
@@ -413,9 +431,18 @@ function wp_photobook_shortcode( $atts ) {
 
 	$leaves = $urls;
 	if ( 'no' !== $atts['cover'] ) {
-		$subtitle = $atts['cover_subtitle'] ? $atts['cover_subtitle'] : ( count( $urls ) . ' ' . __( 'PHOTOGRAPHS', 'wp-photobook' ) );
-		array_unshift( $leaves, wp_photobook_cover_svg( $atts['cover_title'], $subtitle, 'front' ) );
-		$leaves[] = wp_photobook_cover_svg( count( $urls ) . ' ' . __( 'PHOTOGRAPHS', 'wp-photobook' ), __( 'END', 'wp-photobook' ), 'back' );
+		$front_cover = wp_photobook_resolve_image( $atts['cover_image'], $size );
+		if ( ! $front_cover ) {
+			$subtitle    = $atts['cover_subtitle'] ? $atts['cover_subtitle'] : ( count( $urls ) . ' ' . __( 'PHOTOGRAPHS', 'wp-photobook' ) );
+			$front_cover = wp_photobook_cover_svg( $atts['cover_title'], $subtitle, 'front' );
+		}
+		array_unshift( $leaves, $front_cover );
+
+		$back_cover = wp_photobook_resolve_image( $atts['back_cover_image'], $size );
+		if ( ! $back_cover ) {
+			$back_cover = wp_photobook_cover_svg( count( $urls ) . ' ' . __( 'PHOTOGRAPHS', 'wp-photobook' ), __( 'END', 'wp-photobook' ), 'back' );
+		}
+		$leaves[] = $back_cover;
 	}
 
 	++$instance;

@@ -59,14 +59,24 @@ ACF PRO 라이선스가 있어서 "갤러리" 필드 타입을 쓸 수 있는 �
 | `post_id`         | 현재 페이지          | 다른 페이지의 사진을 불러오고 싶을 때 사용                             |
 | `size`            | `large`              | 사용할 워드프레스 이미지 사이즈 (`medium`, `large`, `full` 등)         |
 | `cover`           | `yes`                | 표지/뒤표지를 자동 생성할지 여부 (`no`로 끄면 사진만 바로 시작)        |
-| `cover_title`     | 사이트 제목          | 표지에 표시할 제목                                                     |
-| `cover_subtitle`  | `{장수} PHOTOGRAPHS` | 표지에 표시할 부제                                                     |
+| `cover_title`     | 사이트 제목          | (이미지 표지가 없을 때) 표지에 표시할 제목                             |
+| `cover_subtitle`  | `{장수} PHOTOGRAPHS` | (이미지 표지가 없을 때) 표지에 표시할 부제                             |
+| `cover_image`     | —                     | 직접 만든 이미지를 앞표지로 사용. 미디어 라이브러리 URL 또는 첨부파일 ID |
+| `back_cover_image`| —                     | 뒤표지 이미지. `cover_image`와 같은 방식                                |
 
-예시:
+예시 (글자 표지):
 
 ```
 [wp_photobook size="large" cover_title="우리 결혼식" cover_subtitle="2026.05.10"]
 ```
+
+예시 (직접 만든 이미지 표지):
+
+```
+[wp_photobook cover_image="https://내사이트.com/wp-content/uploads/2026/09/cover.jpg"]
+```
+
+`cover_image`/`back_cover_image`를 지정하면 `cover_title`/`cover_subtitle`은 무시되고 그 이미지가 그대로 표지로 쓰입니다. 세로형(5:7 비율, 예: 1000×1400px)에 가깝게 만들면 잘리는 부분 없이 깔끔하게 들어갑니다.
 
 ## 설치
 

@@ -94,13 +94,13 @@ function wp_photobook_styles() {
 @media (prefers-color-scheme: dark){
 	.wppb-root:not([data-theme="light"]){
 		--wppb-ink:#efe7d8;--wppb-ink-soft:#b6ac97;--wppb-surface-2:#1c1723;
-		--wppb-paper:#efe6d2;--wppb-border:#332c3a;--wppb-accent:#dcae64;
+		--wppb-paper:#f8f8f8;--wppb-border:#332c3a;--wppb-accent:#dcae64;
 		--wppb-accent-soft:#f0d8a5;--wppb-shadow:rgba(0,0,0,0.55);--wppb-focus:#e0b365;
 	}
 }
 .wppb-root[data-theme="dark"]{
 	--wppb-ink:#efe7d8;--wppb-ink-soft:#b6ac97;--wppb-surface-2:#1c1723;
-	--wppb-paper:#efe6d2;--wppb-border:#332c3a;--wppb-accent:#dcae64;
+	--wppb-paper:#f8f8f8;--wppb-border:#332c3a;--wppb-accent:#dcae64;
 	--wppb-accent-soft:#f0d8a5;--wppb-shadow:rgba(0,0,0,0.55);--wppb-focus:#e0b365;
 }
 .wppb-root *{box-sizing:border-box;}

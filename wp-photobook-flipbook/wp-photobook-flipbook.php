@@ -105,13 +105,13 @@ function wp_photobook_styles() {
 }
 .wppb-root *{box-sizing:border-box;}
 .wppb-stage{position:relative;}
-.wppb-book-stage{position:relative;width:min(100%,1200px,calc(90vh * 10 / 7));margin:0 auto;perspective:2200px;}
+.wppb-book-stage{position:relative;width:min(100%,1000px,calc(90vh * 10 / 7));margin:0 auto;perspective:2200px;}
 .wppb-book-stage.wppb-single{width:min(100%,400px,calc(90vh * 5 / 7));}
 .wppb-book{position:relative;width:100%;aspect-ratio:10/7;overflow:hidden;border-radius:8px;background:var(--wppb-paper) !important;
 	box-shadow:0 30px 56px -24px var(--wppb-shadow),0 10px 22px -12px var(--wppb-shadow),inset 0 0 0 1px var(--wppb-border);
 	transition:width .5s ease,aspect-ratio .5s ease;}
 .wppb-book.wppb-single{aspect-ratio:5/7;}
-.wppb-book.wppb-view-single{width:min(100%,600px,calc(90vh * 5 / 7));margin:0 auto;aspect-ratio:5/7;}
+.wppb-book.wppb-view-single{width:min(100%,500px,calc(90vh * 5 / 7));margin:0 auto;aspect-ratio:5/7;}
 .wppb-book.wppb-single.wppb-view-single{width:min(100%,400px,calc(90vh * 5 / 7));}
 .wppb-book.wppb-view-single .wppb-spine{display:none;}
 .wppb-book.wppb-view-single .wppb-slot-a{width:100%;}

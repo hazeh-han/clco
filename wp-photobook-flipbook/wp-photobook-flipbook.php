@@ -165,7 +165,7 @@ function wp_photobook_styles() {
 		inset 0 1px 1px rgba(255,255,255,.85),inset 0 -8px 12px -9px rgba(27,44,85,.18);
 	color:var(--wppb-ink);display:flex;align-items:center;justify-content:center;cursor:pointer;
 	transition:transform .15s ease,box-shadow .15s ease,background .2s ease;}
-.wppb-ctl-btn:hover:not(:disabled){background:rgba(248,248,248,.75);border-color:rgba(27,44,85,.55);}
+.wppb-ctl-btn:hover:not(:disabled){background:rgba(248,248,248,.75);}
 .wppb-ctl-btn:active:not(:disabled){transform:scale(.92);box-shadow:0 4px 10px -6px rgba(27,44,85,.35),inset 0 1px 1px rgba(255,255,255,.7);}
 .wppb-ctl-btn:disabled{opacity:.35;cursor:default;}
 .wppb-ctl-btn:focus-visible{outline:2px solid var(--wppb-focus);outline-offset:2px;}
@@ -173,12 +173,12 @@ function wp_photobook_styles() {
 .wppb-ctl-mid{display:flex;flex-direction:column;align-items:center;gap:6px;width:180px;}
 .wppb-ctl-mid input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:20px;background:transparent;margin:0;}
 .wppb-ctl-mid input[type=range]::-webkit-slider-runnable-track{height:6px;border-radius:999px;
-	background:linear-gradient(to right,var(--wppb-glass-a),var(--wppb-glass-b));}
+	background:linear-gradient(to right,var(--wppb-glass-b),var(--wppb-glass-a));}
 .wppb-ctl-mid input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;margin-top:-6px;
 	background:radial-gradient(120% 120% at 30% 25%,rgba(255,255,255,.95),rgba(255,255,255,.35) 62%);
 	border:1px solid rgba(255,255,255,.7);box-shadow:0 3px 8px -2px rgba(27,44,85,.45),inset 0 1px 1px rgba(255,255,255,.85);}
 .wppb-ctl-mid input[type=range]::-moz-range-track{height:6px;border-radius:999px;
-	background:linear-gradient(to right,var(--wppb-glass-a),var(--wppb-glass-b));}
+	background:linear-gradient(to right,var(--wppb-glass-b),var(--wppb-glass-a));}
 .wppb-ctl-mid input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;border:1px solid rgba(255,255,255,.7);
 	background:radial-gradient(120% 120% at 30% 25%,rgba(255,255,255,.95),rgba(255,255,255,.35) 62%);
 	box-shadow:0 3px 8px -2px rgba(27,44,85,.45);}

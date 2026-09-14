@@ -89,7 +89,7 @@ function wp_photobook_styles() {
 	--wppb-shadow:rgba(29,22,14,0.35);
 	--wppb-focus:#8a5c1e;
 	--wppb-font-mono:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Menlo,monospace;
-	max-width:760px;margin:0 auto;box-sizing:border-box;
+	max-width:1240px;margin:0 auto;box-sizing:border-box;
 }
 @media (prefers-color-scheme: dark){
 	.wppb-root:not([data-theme="light"]){
@@ -105,7 +105,7 @@ function wp_photobook_styles() {
 }
 .wppb-root *{box-sizing:border-box;}
 .wppb-stage{position:relative;}
-.wppb-book-stage{position:relative;width:min(100%,760px,calc(90vh * 10 / 7));margin:0 auto;perspective:2200px;}
+.wppb-book-stage{position:relative;width:min(100%,1200px,calc(90vh * 10 / 7));margin:0 auto;perspective:2200px;}
 .wppb-book-stage.wppb-single{width:min(100%,400px,calc(90vh * 5 / 7));}
 .wppb-book{position:relative;width:100%;aspect-ratio:10/7;overflow:hidden;border-radius:8px;background:var(--wppb-paper) !important;
 	box-shadow:0 30px 56px -24px var(--wppb-shadow),0 10px 22px -12px var(--wppb-shadow),inset 0 0 0 1px var(--wppb-border);

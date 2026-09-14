@@ -150,6 +150,7 @@ function wp_photobook_styles() {
 .wppb-ctl-mid input[type=range]:focus-visible{outline:2px solid var(--wppb-focus);outline-offset:2px;}
 .wppb-ctl-count{font-family:var(--wppb-font-mono);font-size:.8rem;color:var(--wppb-ink-soft);font-variant-numeric:tabular-nums;}
 .wppb-hint{text-align:center;font-size:.8rem;color:var(--wppb-ink-soft);margin:10px 0 0;}
+.wppb-hide-gallery{display:none !important;}
 </style>
 CSS;
 }

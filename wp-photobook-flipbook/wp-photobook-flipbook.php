@@ -165,7 +165,7 @@ function wp_photobook_styles() {
 		inset 0 1px 1px rgba(255,255,255,.85),inset 0 -8px 12px -9px rgba(27,44,85,.18);
 	color:var(--wppb-ink);display:flex;align-items:center;justify-content:center;cursor:pointer;
 	transition:transform .15s ease,box-shadow .15s ease,background .2s ease;}
-.wppb-ctl-btn:hover:not(:disabled){background:rgba(248,248,248,.75);}
+.wppb-ctl-btn:hover:not(:disabled){background:rgba(248,248,248,.75);border-color:rgba(27,44,85,.55);}
 .wppb-ctl-btn:active:not(:disabled){transform:scale(.92);box-shadow:0 4px 10px -6px rgba(27,44,85,.35),inset 0 1px 1px rgba(255,255,255,.7);}
 .wppb-ctl-btn:disabled{opacity:.35;cursor:default;}
 .wppb-ctl-btn:focus-visible{outline:2px solid var(--wppb-focus);outline-offset:2px;}
@@ -183,8 +183,8 @@ function wp_photobook_styles() {
 	background:radial-gradient(120% 120% at 30% 25%,rgba(255,255,255,.95),rgba(255,255,255,.35) 62%);
 	box-shadow:0 3px 8px -2px rgba(27,44,85,.45);}
 .wppb-ctl-mid input[type=range]:focus-visible{outline:2px solid var(--wppb-focus);outline-offset:2px;}
-.wppb-ctl-count{font-family:var(--wppb-font-mono);font-size:.8rem;color:var(--wppb-ink-soft);font-variant-numeric:tabular-nums;}
-.wppb-hint{text-align:center;font-size:.8rem;color:var(--wppb-ink-soft);margin:10px 0 0;}
+.wppb-ctl-count{font-family:var(--wppb-font-mono);font-size:.8rem;color:rgba(27,44,85,.8);font-variant-numeric:tabular-nums;}
+.wppb-hint{text-align:center;font-size:.8rem;color:rgba(27,44,85,.8);margin:10px 0 0;}
 .wppb-hide-gallery{display:none !important;}
 </style>
 <svg width="0" height="0" style="position:absolute;overflow:hidden" aria-hidden="true">

@@ -114,7 +114,8 @@ function wp_photobook_styles() {
 	background:linear-gradient(to right,transparent,var(--wppb-shadow) 45%,var(--wppb-shadow) 55%,transparent);opacity:.45;pointer-events:none;z-index:4;}
 .wppb-book.wppb-single .wppb-spine{display:none;}
 .wppb-slot{position:absolute;top:0;height:100%;overflow:hidden;background:var(--wppb-paper);}
-.wppb-slot img{width:100%;height:100%;object-fit:cover;display:block;}
+.wppb-slot img{width:100%;height:100%;object-fit:contain;box-sizing:border-box;padding:7%;background:var(--wppb-paper);display:block;}
+.wppb-slot img.wppb-cover-img{object-fit:cover;padding:0;}
 .wppb-slot-a{left:0;width:50%;}
 .wppb-slot-b{right:0;width:50%;}
 .wppb-book.wppb-single .wppb-slot-a{width:100%;}
@@ -131,7 +132,8 @@ function wp_photobook_styles() {
 .wppb-flipper.wppb-origin-right{transform-origin:right center;}
 .wppb-book.wppb-single .wppb-flipper{width:100%;left:0;right:auto;}
 .wppb-face{position:absolute;inset:0;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden;background:var(--wppb-paper);}
-.wppb-face img{width:100%;height:100%;object-fit:cover;display:block;}
+.wppb-face img{width:100%;height:100%;object-fit:contain;box-sizing:border-box;padding:7%;background:var(--wppb-paper);display:block;}
+.wppb-face img.wppb-cover-img{object-fit:cover;padding:0;}
 .wppb-face-back{transform:rotateY(180deg);}
 .wppb-face-front::after,.wppb-face-back::after{content:'';position:absolute;inset:0;pointer-events:none;
 	background:linear-gradient(to right,rgba(0,0,0,.22),transparent 22%,transparent 78%,rgba(0,0,0,.22));}
@@ -163,7 +165,7 @@ CSS;
 function wp_photobook_script() {
 	return <<<'JS'
 <script>
-window.WPPhotobookInit = function(root, leaves){
+window.WPPhotobookInit = function(root, leaves, hasCover){
 	if(!root || !leaves || !leaves.length) return;
 
 	var bookStage = root.querySelector('.wppb-book-stage');
@@ -189,6 +191,13 @@ window.WPPhotobookInit = function(root, leaves){
 
 	function maxView(){ return Math.ceil(totalLeaves / pv) - 1; }
 
+	function isCoverLeaf(i){ return !!hasCover && (i === 0 || i === totalLeaves - 1); }
+
+	function setLeafImg(imgEl, leafIndex){
+		imgEl.src = leaves[leafIndex];
+		imgEl.classList.toggle('wppb-cover-img', isCoverLeaf(leafIndex));
+	}
+
 	function applyMode(){
 		var single = mq.matches;
 		pv = single ? 1 : 2;
@@ -199,8 +208,8 @@ window.WPPhotobookInit = function(root, leaves){
 	function preload(src){ if(src){ var i = new Image(); i.src = src; } }
 
 	function renderStatic(){
-		imgA.src = leaves[viewIndex * pv];
-		if(pv === 2){ imgB.src = leaves[viewIndex * pv + 1]; }
+		setLeafImg(imgA, viewIndex * pv);
+		if(pv === 2){ setLeafImg(imgB, viewIndex * pv + 1); }
 		updateControls();
 		var mv = maxView();
 		if(viewIndex < mv){ preload(leaves[Math.min((viewIndex + 1) * pv, totalLeaves - 1)]); }
@@ -229,18 +238,18 @@ window.WPPhotobookInit = function(root, leaves){
 
 		animating = true;
 		flipper.classList.remove('wppb-origin-left','wppb-origin-right','wppb-at-start','wppb-at-end');
-		var frontSrc, backSrc;
+		var frontIndex, backIndex;
 		if(dir === 1){
-			frontSrc = leaves[viewIndex * pv + (pv - 1)];
-			backSrc = leaves[(viewIndex + 1) * pv];
+			frontIndex = viewIndex * pv + (pv - 1);
+			backIndex = (viewIndex + 1) * pv;
 			flipper.classList.add('wppb-origin-left','wppb-at-end');
 		} else {
-			frontSrc = leaves[viewIndex * pv];
-			backSrc = leaves[viewIndex * pv - 1];
+			frontIndex = viewIndex * pv;
+			backIndex = viewIndex * pv - 1;
 			flipper.classList.add('wppb-origin-right','wppb-at-start');
 		}
-		flipFront.src = frontSrc;
-		flipBack.src = backSrc;
+		setLeafImg(flipFront, frontIndex);
+		setLeafImg(flipBack, backIndex);
 
 		flipper.style.transition = 'none';
 		flipper.style.transform = 'rotateY(0deg)';
@@ -494,7 +503,8 @@ function wp_photobook_shortcode( $atts ) {
 	(function(){
 		var root = document.getElementById(<?php echo wp_json_encode( $root_id ); ?>);
 		var leaves = <?php echo $json; /* phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped */ ?>;
-		if (window.WPPhotobookInit) { window.WPPhotobookInit(root, leaves); }
+		var hasCover = <?php echo wp_json_encode( 'no' !== $atts['cover'] ); ?>;
+		if (window.WPPhotobookInit) { window.WPPhotobookInit(root, leaves, hasCover); }
 	})();
 	</script>
 	<?php

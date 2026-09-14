@@ -82,7 +82,7 @@ function wp_photobook_styles() {
 	--wppb-ink:#221c1a;
 	--wppb-ink-soft:#6a5f52;
 	--wppb-surface-2:#ddd5c0;
-	--wppb-paper:#f4eee0;
+	--wppb-paper:#f8f8f8;
 	--wppb-border:#cec1a0;
 	--wppb-accent:#a97928;
 	--wppb-accent-soft:#e3c688;
@@ -108,8 +108,15 @@ function wp_photobook_styles() {
 .wppb-book-stage{position:relative;width:min(100%,760px);margin:0 auto;perspective:2200px;}
 .wppb-book-stage.wppb-single{width:min(100%,320px);}
 .wppb-book{position:relative;width:100%;aspect-ratio:10/7;overflow:hidden;border-radius:8px;background:var(--wppb-paper);
-	box-shadow:0 30px 56px -24px var(--wppb-shadow),0 10px 22px -12px var(--wppb-shadow),inset 0 0 0 1px var(--wppb-border);}
+	box-shadow:0 30px 56px -24px var(--wppb-shadow),0 10px 22px -12px var(--wppb-shadow),inset 0 0 0 1px var(--wppb-border);
+	transition:width .5s ease,aspect-ratio .5s ease;}
 .wppb-book.wppb-single{aspect-ratio:5/7;}
+.wppb-book.wppb-view-single{width:min(100%,320px);margin:0 auto;aspect-ratio:5/7;}
+.wppb-book.wppb-view-single .wppb-spine{display:none;}
+.wppb-book.wppb-view-single .wppb-slot-a{width:100%;}
+.wppb-book.wppb-view-single .wppb-slot-b{display:none;}
+.wppb-book.wppb-view-single .wppb-slot-a::after{display:none;}
+.wppb-book.wppb-view-single .wppb-flipper{width:100%;left:0;right:auto;}
 .wppb-spine{position:absolute;top:0;left:50%;width:10px;height:100%;transform:translateX(-50%);
 	background:linear-gradient(to right,transparent,var(--wppb-shadow) 45%,var(--wppb-shadow) 55%,transparent);opacity:.45;pointer-events:none;z-index:4;}
 .wppb-book.wppb-single .wppb-spine{display:none;}
@@ -128,6 +135,7 @@ function wp_photobook_styles() {
 .wppb-flipper.wppb-visible{opacity:1;}
 .wppb-flipper.wppb-at-start{left:0;right:auto;}
 .wppb-flipper.wppb-at-end{right:0;left:auto;}
+.wppb-flipper.wppb-full{width:100%;left:0;right:auto;}
 .wppb-flipper.wppb-origin-left{transform-origin:left center;}
 .wppb-flipper.wppb-origin-right{transform-origin:right center;}
 .wppb-book.wppb-single .wppb-flipper{width:100%;left:0;right:auto;}
@@ -185,11 +193,41 @@ window.WPPhotobookInit = function(root, leaves, hasCover){
 	var totalLeaves = leaves.length;
 	var pv = 2;
 	var viewIndex = 0;
+	var views = [];
 	var animating = false;
 	var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 	var mq = window.matchMedia('(max-width: 680px)');
 
-	function maxView(){ return Math.ceil(totalLeaves / pv) - 1; }
+	// Each entry is [leftOrOnlyLeafIndex, rightLeafIndexOrNull]. The front
+	// and back covers get their own single-page view (like a real book:
+	// closed cover, then it opens to a blank flyleaf + the first photo,
+	// and closes the same way at the end) instead of being paired with a photo.
+	function buildViews(){
+		var v = [];
+		if(pv === 1){
+			for(var i = 0; i < totalLeaves; i++){ v.push([i, null]); }
+			return v;
+		}
+		if(hasCover && totalLeaves >= 2){
+			v.push([0, null]);
+			var end = totalLeaves - 2;
+			var i2 = 1;
+			while(i2 <= end){
+				v.push([i2, (i2 + 1 <= end) ? i2 + 1 : null]);
+				i2 += 2;
+			}
+			v.push([totalLeaves - 1, null]);
+		} else {
+			var j = 0;
+			while(j < totalLeaves){
+				v.push([j, (j + 1 < totalLeaves) ? j + 1 : null]);
+				j += 2;
+			}
+		}
+		return v;
+	}
+
+	function maxView(){ return views.length - 1; }
 
 	function isCoverLeaf(i){ return !!hasCover && (i === 0 || i === totalLeaves - 1); }
 
@@ -203,17 +241,24 @@ window.WPPhotobookInit = function(root, leaves, hasCover){
 		pv = single ? 1 : 2;
 		book.classList.toggle('wppb-single', single);
 		bookStage.classList.toggle('wppb-single', single);
+		views = buildViews();
+		viewIndex = Math.min(viewIndex, maxView());
 	}
 
 	function preload(src){ if(src){ var i = new Image(); i.src = src; } }
 
+	function preloadView(v){ if(!v) return; preload(leaves[v[0]]); if(v[1] !== null){ preload(leaves[v[1]]); } }
+
 	function renderStatic(){
-		setLeafImg(imgA, viewIndex * pv);
-		if(pv === 2){ setLeafImg(imgB, viewIndex * pv + 1); }
+		var view = views[viewIndex];
+		var single = view[1] === null;
+		book.classList.toggle('wppb-view-single', single);
+		setLeafImg(imgA, view[0]);
+		if(!single){ setLeafImg(imgB, view[1]); }
 		updateControls();
 		var mv = maxView();
-		if(viewIndex < mv){ preload(leaves[Math.min((viewIndex + 1) * pv, totalLeaves - 1)]); }
-		if(viewIndex > 0){ preload(leaves[Math.max((viewIndex - 1) * pv, 0)]); }
+		if(viewIndex < mv){ preloadView(views[viewIndex + 1]); }
+		if(viewIndex > 0){ preloadView(views[viewIndex - 1]); }
 	}
 
 	function updateControls(){
@@ -237,19 +282,27 @@ window.WPPhotobookInit = function(root, leaves, hasCover){
 		}
 
 		animating = true;
-		flipper.classList.remove('wppb-origin-left','wppb-origin-right','wppb-at-start','wppb-at-end');
+		var curView = views[viewIndex];
+		var nextView = views[viewIndex + dir];
+		var curSingle = curView[1] === null;
+		var nextSingle = nextView[1] === null;
+
+		flipper.classList.remove('wppb-origin-left','wppb-origin-right','wppb-at-start','wppb-at-end','wppb-full');
 		var frontIndex, backIndex;
 		if(dir === 1){
-			frontIndex = viewIndex * pv + (pv - 1);
-			backIndex = (viewIndex + 1) * pv;
-			flipper.classList.add('wppb-origin-left','wppb-at-end');
+			frontIndex = curSingle ? curView[0] : curView[1];
+			backIndex = nextView[0];
+			flipper.classList.add('wppb-origin-left');
+			flipper.classList.add((curSingle || nextSingle) ? 'wppb-full' : 'wppb-at-end');
 		} else {
-			frontIndex = viewIndex * pv;
-			backIndex = viewIndex * pv - 1;
-			flipper.classList.add('wppb-origin-right','wppb-at-start');
+			frontIndex = curView[0];
+			backIndex = nextSingle ? nextView[0] : nextView[1];
+			flipper.classList.add('wppb-origin-right');
+			flipper.classList.add((curSingle || nextSingle) ? 'wppb-full' : 'wppb-at-start');
 		}
 		setLeafImg(flipFront, frontIndex);
 		setLeafImg(flipBack, backIndex);
+		book.classList.toggle('wppb-view-single', nextSingle);
 
 		flipper.style.transition = 'none';
 		flipper.style.transform = 'rotateY(0deg)';
@@ -295,10 +348,13 @@ window.WPPhotobookInit = function(root, leaves, hasCover){
 	window.addEventListener('resize', function(){
 		clearTimeout(resizeTimer);
 		resizeTimer = setTimeout(function(){
-			var oldPv = pv;
-			var absPos = viewIndex * oldPv;
+			var curLeaf = views.length ? views[viewIndex][0] : 0;
 			applyMode();
-			viewIndex = Math.min(Math.floor(absPos / pv), maxView());
+			var newIndex = maxView();
+			for(var k = 0; k < views.length; k++){
+				if(views[k][0] >= curLeaf){ newIndex = k; break; }
+			}
+			viewIndex = newIndex;
 			renderStatic();
 		}, 150);
 	});
@@ -324,6 +380,14 @@ function wp_photobook_resolve_image( $value, $size ) {
 		return $url ? $url : '';
 	}
 	return esc_url_raw( $value );
+}
+
+/**
+ * A blank (transparent) leaf used as the flyleaf right inside the front
+ * and back covers, like a real bound book.
+ */
+function wp_photobook_blank_leaf() {
+	return 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///ywAAAAAAQABAAACAUwAOw==';
 }
 
 /**
@@ -445,13 +509,17 @@ function wp_photobook_shortcode( $atts ) {
 			$subtitle    = $atts['cover_subtitle'] ? $atts['cover_subtitle'] : ( count( $urls ) . ' ' . __( 'PHOTOGRAPHS', 'wp-photobook' ) );
 			$front_cover = wp_photobook_cover_svg( $atts['cover_title'], $subtitle, 'front' );
 		}
-		array_unshift( $leaves, $front_cover );
 
 		$back_cover = wp_photobook_resolve_image( $atts['back_cover_image'], $size );
 		if ( ! $back_cover ) {
 			$back_cover = wp_photobook_cover_svg( count( $urls ) . ' ' . __( 'PHOTOGRAPHS', 'wp-photobook' ), __( 'END', 'wp-photobook' ), 'back' );
 		}
-		$leaves[] = $back_cover;
+
+		// Real-book feel: cover opens onto a blank flyleaf before the first
+		// photo, and closes the same way onto a blank flyleaf before the
+		// back cover — the cover itself is never paired with a photo.
+		$blank  = wp_photobook_blank_leaf();
+		$leaves = array_merge( array( $front_cover, $blank ), $urls, array( $blank, $back_cover ) );
 	}
 
 	++$instance;

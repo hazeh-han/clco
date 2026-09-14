@@ -126,7 +126,10 @@ function wp_photobook_styles() {
 	background:linear-gradient(to right,transparent,var(--wppb-shadow) 45%,var(--wppb-shadow) 55%,transparent);opacity:.45;pointer-events:none;z-index:4;}
 .wppb-book.wppb-single .wppb-spine{display:none;}
 .wppb-slot{position:absolute;top:0;height:100%;overflow:hidden;background:var(--wppb-paper) !important;}
-.wppb-slot img{width:100%;height:100%;object-fit:contain;box-sizing:border-box;padding:7%;background:var(--wppb-paper) !important;display:block;}
+.wppb-slot img{width:100%;height:100%;object-fit:contain;box-sizing:border-box;padding:7%;background:var(--wppb-paper) !important;display:block;
+	opacity:0;transition:opacity .35s ease;}
+.wppb-slot img.wppb-loaded{opacity:1;}
+@media (prefers-reduced-motion: reduce){.wppb-slot img{transition:none;}}
 .wppb-slot img.wppb-cover-img{object-fit:cover;padding:0;}
 .wppb-slot img.wppb-blank-img{display:none;}
 .wppb-slot-a{left:0;width:50%;}
@@ -271,6 +274,21 @@ window.WPPhotobookInit = function(root, leaves, hasCover){
 		imgEl.classList.toggle('wppb-blank-img', isBlankLeaf(leafIndex));
 	}
 
+	// Same as setLeafImg, but fades the image in once it's actually loaded
+	// instead of popping in abruptly. Only used for the static slots (not
+	// the flip faces, which need to already be visible the moment the
+	// flip animation starts).
+	function setSlotImg(imgEl, leafIndex){
+		imgEl.classList.remove('wppb-loaded');
+		setLeafImg(imgEl, leafIndex);
+		var reveal = function(){ imgEl.classList.add('wppb-loaded'); };
+		if(imgEl.complete && imgEl.naturalWidth > 0){
+			requestAnimationFrame(function(){ requestAnimationFrame(reveal); });
+		} else {
+			imgEl.onload = reveal;
+		}
+	}
+
 	function applyMode(){
 		var single = mq.matches;
 		pv = single ? 1 : 2;
@@ -288,8 +306,8 @@ window.WPPhotobookInit = function(root, leaves, hasCover){
 		var view = views[viewIndex];
 		var single = view[1] === null;
 		book.classList.toggle('wppb-view-single', single);
-		setLeafImg(imgA, view[0]);
-		if(!single){ setLeafImg(imgB, view[1]); }
+		setSlotImg(imgA, view[0]);
+		if(!single){ setSlotImg(imgB, view[1]); }
 		updateControls();
 		var mv = maxView();
 		if(viewIndex < mv){ preloadView(views[viewIndex + 1]); }

@@ -148,7 +148,8 @@ function wp_photobook_styles() {
 .wppb-face-front::after,.wppb-face-back::after{content:'';position:absolute;inset:0;pointer-events:none;
 	background:linear-gradient(to right,rgba(0,0,0,.22),transparent 22%,transparent 78%,rgba(0,0,0,.22));}
 @media (prefers-reduced-motion: reduce){.wppb-flipper{transition:none;}}
-.wppb-nav-zone{position:absolute;top:0;bottom:0;width:50%;background:transparent;border:0;padding:0;margin:0;cursor:pointer;}
+.wppb-nav-zone{position:absolute;top:0;bottom:0;width:50%;background:transparent;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent;}
+.wppb-nav-zone,.wppb-nav-zone:hover,.wppb-nav-zone:focus,.wppb-nav-zone:active{background:transparent !important;outline:none;box-shadow:none !important;}
 .wppb-nav-prev{left:0;}
 .wppb-nav-next{right:0;}
 .wppb-controls{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:18px;}

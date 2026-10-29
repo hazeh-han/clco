@@ -46,6 +46,16 @@
           <circle class="bumpB" r="40"/>
         </g>
       </mask>
+      <!-- 지금 채워져 있는 영역 (왼쪽 선수가 이 안에서만 배경색으로 보임) -->
+      <mask id="fa-fill" maskUnits="userSpaceOnUse" x="0" y="0" width="714" height="184">
+        <g mask="url(#fa-cut)">
+          <g filter="url(#fa-goo)" fill="#fff">
+            <rect class="pillA"/>
+            <circle class="bumpA" r="40"/>
+          </g>
+        </g>
+      </mask>
+      <g id="fighterA"></g>
     </defs>
     <!-- 왼쪽 선수의 채워진 알약 -->
     <g mask="url(#fa-cut)">
@@ -61,7 +71,9 @@
       <rect class="pillB"/>
       <circle class="bumpB" r="40"/>
     </g>
-    <g id="fighterA"></g>
+    <!-- 왼쪽 선수: 채워진 곳 위에서는 배경색, 나머지는 메인 색 (초승달 경계를 따라 색이 바뀜) -->
+    <use href="#fighterA" style="color: var(--fencing-fg)"/>
+    <use href="#fighterA" style="color: var(--fencing-bg)" mask="url(#fa-fill)"/>
     <g id="fighterB"></g>
   </svg>
 </div>
@@ -89,7 +101,7 @@
      천천히 출발 → 빨라짐 → 천천히 멈춤 (1 2 3 5 7 9 7 4 2 1)
      SOFTNESS: 1에 가까울수록 반동 없이 스르륵, 낮출수록(예: 0.6) 말랑하게 한 번 출렁 */
   const SOFTNESS = 0.85;
-  const JELLY = 0.55;          // 알약의 출렁임 (낮을수록 더 출렁)
+  const JELLY = 0.7;           // 알약의 출렁임 (낮을수록 더 출렁)
 
   /* ===== 자세 =====
      lean: 상체 기울기 / ft,fs: 앞다리 허벅지·정강이 / bt,bs: 뒷다리 (아래 방향 기준, +가 앞)
@@ -179,10 +191,8 @@
   // 알약 합체 정도 (0 = 따로, 1 = 하나). 튕기듯 합쳐지고 갈라짐
   const TRACK_M = [
     { t: 0,    m: 0 },
-    { t: 3.9,  m: 0.2, d: .5 },
-    { t: 4.45, m: 1,   d: .55 },
-    { t: 11.3, m: 0.2, d: .45 },
-    { t: 11.85,m: 0,   d: .6 },
+    { t: 3.7,  m: 1, d: 1.1 },   // 천천히 다가가 목이 생기고, 자연스럽게 빨려 들어감
+    { t: 11.2, m: 0, d: 1.0 },
   ];
 
   /* 키프레임 → 부드러운 움직임 미리 계산 (루프 한 바퀴를 1/120초 단위로 기록)
@@ -332,7 +342,7 @@
     const ax = lerp(110, 207, m), bx = lerp(404, 207, m), w = lerp(200, 300, m);
     const h = 130 - (w - lerp(200, 300, mc)) * 0.45;           // 옆으로 늘어나면 위아래로 납작해짐
     const y = 92 - h / 2;
-    const bump = Math.sin(Math.PI * clamp(m / 0.45)) * 30;   // 맞닿기 직전 서로를 향해 부풀어 오름
+    const bump = Math.sin(Math.PI * clamp(m / 0.4)) * 16;   // 맞닿기 직전 서로를 향해 부풀어 오름
     const setPill = (sel, x) => all(sel).forEach(e => {
       e.setAttribute('x', x); e.setAttribute('y', y);
       e.setAttribute('width', w); e.setAttribute('height', h); e.setAttribute('rx', h / 2);
@@ -341,9 +351,7 @@
     setPill('.pillB', bx);
     all('.bumpA').forEach(e => { e.setAttribute('cx', ax + w - 40 + bump); e.setAttribute('cy', 92); });
     all('.bumpB').forEach(e => { e.setAttribute('cx', bx + 40 - bump * 0.6); e.setAttribute('cy', 92); });
-    $('fillGroup').setAttribute('opacity', 1 - smooth(.85, 1, mc));
-    // 왼쪽 선수: 채워진 알약 위에서는 배경색, 합쳐진 뒤에는 메인 색
-    $('fighterA').style.color = `color-mix(in srgb, var(--fencing-fg) ${smooth(.3, .7, mc) * 100}%, var(--fencing-bg))`;
+    $('fillGroup').setAttribute('opacity', 1 - smooth(.96, 1, mc));
 
     const a = sampleFighter(motionA, t, IDLE_A), b = sampleFighter(motionB, t, IDLE_B);
     const a0 = sampleFighter(motionA, t - 0.05, IDLE_A), b0 = sampleFighter(motionB, t - 0.05, IDLE_B);

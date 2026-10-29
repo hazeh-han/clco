@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fencing Animation</title>
+<style>
+  /* ===== 색상은 여기 3줄만 바꾸면 전체가 바뀝니다 ===== */
+  :root {
+    --fencing-bg: #1f0027;   /* 배경색 */
+    --fencing-fg: #e08cff;   /* 메인 색 (채워진 알약 / 선수 / 외곽선) */
+    --fencing-line: #e08cff; /* 알약 외곽선 색 (메인 색과 다르게 하고 싶을 때) */
+  }
+  body { margin: 0; background: var(--fencing-bg); font-family: system-ui, sans-serif; color: var(--fencing-fg); }
+  .fencing-anim { width: 100%; max-width: 714px; margin: 0 auto; }
+  .fencing-anim svg { display: block; width: 100%; height: auto; }
+
+  /* 데모용 색상 선택 바 — 사이트에 넣을 땐 <div class="demo-controls"> 블록을 지우세요 */
+  .demo-controls { display: flex; gap: 16px; justify-content: center; padding: 24px 16px; font-size: 14px; flex-wrap: wrap; }
+  .demo-controls label { display: flex; align-items: center; gap: 8px; }
+  .demo-controls input { width: 40px; height: 28px; border: 0; padding: 0; background: none; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div class="fencing-anim" id="fencing-anim">
+  <svg viewBox="0 0 714 184" role="img" aria-label="두 명의 펜싱 선수가 겨루는 애니메이션">
+    <!-- 왼쪽 선수의 채워진 알약 -->
+    <rect id="pillFill" x="110" y="27" width="200" height="130" rx="65" fill="var(--fencing-fg)"/>
+    <!-- 오른쪽 알약 = 합쳐질 때 전체로 늘어나는 경기장 -->
+    <rect id="arena" x="404" y="27" width="200" height="130" rx="65" fill="none" stroke="var(--fencing-line)" stroke-width="1.5"/>
+    <g id="fighterA"></g>
+    <g id="fighterB"></g>
+  </svg>
+</div>
+
+<div class="demo-controls">
+  <label>배경 <input type="color" id="cBg" value="#1f0027"></label>
+  <label>메인 <input type="color" id="cFg" value="#e08cff"></label>
+  <label>외곽선 <input type="color" id="cLine" value="#e08cff"></label>
+</div>
+
+<script>
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const GROUND = 140;          // 바닥 y
+  const LOOP = 14;             // 한 바퀴 길이(초)
+  const L = { torso: 26, upper: 13, fore: 13, thigh: 18, shin: 18, sword: 50 };
+  const rad = d => d * Math.PI / 180;
+  const lerp = (a, b, u) => a + (b - a) * u;
+  const ease = u => u < .5 ? 2*u*u : 1 - Math.pow(-2*u + 2, 2) / 2;
+  const smooth = (a, b, x) => { const u = Math.min(1, Math.max(0, (x - a) / (b - a))); return u*u*(3 - 2*u); };
+
+  /* ===== 자세 =====
+     lean: 상체 기울기 / ft,fs: 앞다리 허벅지·정강이 각도 / bt,bs: 뒷다리
+     fa1,fa2: 칼 든 팔 위팔·아래팔 / ba1,ba2: 뒤쪽 팔 / sw: 칼 각도 */
+  const P = {
+    guard:   { lean: 6,  ft: 38, fs: -8,  bt: -28, bs: -6,  fa1: 15, fa2: 5,  ba1: 140, ba2: 95,  sw: 10 },
+    lunge:   { lean: 18, ft: 85, fs: 5,   bt: -75, bs: -78, fa1: 5,  fa2: 2,  ba1: 185, ba2: 180, sw: 3  },
+    parry:   { lean: 4,  ft: 30, fs: -12, bt: -25, bs: -5,  fa1: 35, fa2: 65, ba1: 150, ba2: 110, sw: 80 },
+    retreat: { lean: -4, ft: 25, fs: -15, bt: -30, bs: -10, fa1: 10, fa2: -5, ba1: 130, ba2: 90,  sw: 22 },
+  };
+
+  /* ===== 안무 =====
+     t: 시간(초) / ax,bx: 두 선수 위치 / pa,pb: 자세 / m: 알약이 합쳐진 정도(0~1) */
+  const K = [
+    { t: 0,    ax: 185, bx: 529, pa: 'guard',   pb: 'guard',   m: 0 },
+    { t: 1,    ax: 195, bx: 519, pa: 'guard',   pb: 'guard',   m: 0 },
+    { t: 2,    ax: 185, bx: 529, pa: 'guard',   pb: 'guard',   m: 0 },
+    { t: 3.8,  ax: 285, bx: 429, pa: 'guard',   pb: 'guard',   m: 1 },
+    { t: 4.5,  ax: 292, bx: 422, pa: 'guard',   pb: 'guard',   m: 1 },
+    { t: 5.1,  ax: 330, bx: 442, pa: 'lunge',   pb: 'retreat', m: 1 },
+    { t: 5.7,  ax: 330, bx: 442, pa: 'lunge',   pb: 'retreat', m: 1 },
+    { t: 6.4,  ax: 290, bx: 430, pa: 'guard',   pb: 'guard',   m: 1 },
+    { t: 6.9,  ax: 282, bx: 390, pa: 'parry',   pb: 'lunge',   m: 1 },
+    { t: 7.5,  ax: 282, bx: 390, pa: 'parry',   pb: 'lunge',   m: 1 },
+    { t: 8.2,  ax: 290, bx: 430, pa: 'guard',   pb: 'guard',   m: 1 },
+    { t: 8.8,  ax: 322, bx: 396, pa: 'lunge',   pb: 'lunge',   m: 1 },
+    { t: 9.4,  ax: 322, bx: 396, pa: 'lunge',   pb: 'lunge',   m: 1 },
+    { t: 10.0, ax: 292, bx: 424, pa: 'guard',   pb: 'guard',   m: 1 },
+    { t: 11.6, ax: 185, bx: 529, pa: 'retreat', pb: 'retreat', m: 0 },
+    { t: 12.6, ax: 193, bx: 521, pa: 'guard',   pb: 'guard',   m: 0 },
+    { t: 14,   ax: 185, bx: 529, pa: 'guard',   pb: 'guard',   m: 0 },
+  ];
+
+  const mixPose = (a, b, u) => Object.fromEntries(Object.keys(a).map(k => [k, lerp(a[k], b[k], u)]));
+  function sample(t) {
+    let i = 0;
+    while (i < K.length - 2 && t >= K[i + 1].t) i++;
+    const a = K[i], b = K[i + 1];
+    const u = ease(Math.min(1, Math.max(0, (t - a.t) / (b.t - a.t))));
+    return {
+      ax: lerp(a.ax, b.ax, u), bx: lerp(a.bx, b.bx, u), m: lerp(a.m, b.m, u),
+      pa: mixPose(P[a.pa], P[b.pa], u), pb: mixPose(P[a.pb], P[b.pb], u),
+    };
+  }
+
+  /* ===== 선수(막대 인형) ===== */
+  function makeFighter(group) {
+    const mk = (tag, attrs) => {
+      const e = document.createElementNS(NS, tag);
+      for (const k in attrs) e.setAttribute(k, attrs[k]);
+      group.appendChild(e);
+      return e;
+    };
+    const limb = w => mk('line', { 'stroke-width': w, 'stroke-linecap': 'square' });
+    return {
+      backArm: [limb(5), limb(5)], backLeg: [limb(6), limb(6)],
+      torso: limb(8), frontLeg: [limb(6), limb(6)], frontArm: [limb(5), limb(5)],
+      head: mk('rect', { width: 11, height: 11 }),
+      sword: mk('line', { 'stroke-width': 1.2 }),
+      guard: mk('line', { 'stroke-width': 1.2 }),
+    };
+  }
+  const setLine = (el, x1, y1, x2, y2) => {
+    el.setAttribute('x1', x1); el.setAttribute('y1', y1);
+    el.setAttribute('x2', x2); el.setAttribute('y2', y2);
+  };
+
+  function pose(f, p, cx, dir) {
+    const down = a => [Math.sin(rad(a)), Math.cos(rad(a))];   // 아래 방향 기준
+    const fwd  = a => [Math.cos(rad(a)), -Math.sin(rad(a))];  // 앞 방향 기준(+위)
+    const leg = (t, s) => {
+      const [tx, ty] = down(t), [sx, sy] = down(s);
+      const k = [tx * L.thigh, ty * L.thigh];
+      return [k, [k[0] + sx * L.shin, k[1] + sy * L.shin]];
+    };
+    const fl = leg(p.ft, p.fs), bl = leg(p.bt, p.bs);
+    const hipY = GROUND - Math.max(fl[1][1], bl[1][1]);   // 발이 항상 바닥에 닿도록
+    const X = x => cx + dir * x, Y = y => hipY + y;
+    const seg = (el, a, b) => setLine(el, X(a[0]), Y(a[1]), X(b[0]), Y(b[1]));
+
+    const sh = [Math.sin(rad(p.lean)) * L.torso, -Math.cos(rad(p.lean)) * L.torso];
+    const arm = (a1, a2) => {
+      const [ux, uy] = fwd(a1), [fx, fy] = fwd(a2);
+      const e = [sh[0] + ux * L.upper, sh[1] + uy * L.upper];
+      return [e, [e[0] + fx * L.fore, e[1] + fy * L.fore]];
+    };
+    const fa = arm(p.fa1, p.fa2), ba = arm(p.ba1, p.ba2);
+
+    seg(f.backLeg[0], [0, 0], bl[0]);  seg(f.backLeg[1], bl[0], bl[1]);
+    seg(f.frontLeg[0], [0, 0], fl[0]); seg(f.frontLeg[1], fl[0], fl[1]);
+    seg(f.torso, [0, 0], sh);
+    seg(f.backArm[0], sh, ba[0]);  seg(f.backArm[1], ba[0], ba[1]);
+    seg(f.frontArm[0], sh, fa[0]); seg(f.frontArm[1], fa[0], fa[1]);
+
+    const hand = fa[1], [sx, sy] = fwd(p.sw);
+    seg(f.sword, hand, [hand[0] + sx * L.sword, hand[1] + sy * L.sword]);
+    seg(f.guard, [hand[0] - sy * 5, hand[1] + sx * 5], [hand[0] + sy * 5, hand[1] - sx * 5]);
+
+    const hx = sh[0] + Math.sin(rad(p.lean)) * 12, hy = sh[1] - Math.cos(rad(p.lean)) * 12;
+    f.head.setAttribute('x', X(hx) - 5.5);
+    f.head.setAttribute('y', Y(hy) - 5.5);
+  }
+
+  const $ = id => document.getElementById(id);
+  const fA = makeFighter($('fighterA')), fB = makeFighter($('fighterB'));
+  const colorOf = g => {
+    g.querySelectorAll('line').forEach(e => e.setAttribute('stroke', 'currentColor'));
+    g.querySelectorAll('rect').forEach(e => e.setAttribute('fill', 'currentColor'));
+  };
+  colorOf($('fighterA')); colorOf($('fighterB'));
+  $('fighterB').style.color = 'var(--fencing-fg)';
+
+  function render(t) {
+    const s = sample(t % LOOP);
+    // 알약: 오른쪽 외곽선이 왼쪽으로 늘어나 전체를 감싸고, 왼쪽 채움은 사라짐
+    const arena = $('arena');
+    arena.setAttribute('x', lerp(404, 110, s.m));
+    arena.setAttribute('width', lerp(200, 494, s.m));
+    const fadeOut = smooth(.25, .75, s.m);
+    $('pillFill').setAttribute('fill-opacity', 1 - fadeOut);
+    // 왼쪽 선수: 채워진 알약 위에서는 배경색, 합쳐진 뒤에는 메인 색
+    $('fighterA').style.color = `color-mix(in srgb, var(--fencing-fg) ${fadeOut * 100}%, var(--fencing-bg))`;
+    pose(fA, s.pa, s.ax, 1);
+    pose(fB, s.pb, s.bx, -1);
+  }
+
+  /* ===== 재생 ===== */
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const fixed = new URLSearchParams(location.search).get('t');   // ?t=5 처럼 특정 시점 고정(테스트용)
+  if (fixed !== null) render(parseFloat(fixed));
+  else if (reduce) render(5.2);
+  else {
+    let start = null;
+    const tick = now => { if (start === null) start = now; render((now - start) / 1000); requestAnimationFrame(tick); };
+    requestAnimationFrame(tick);
+  }
+
+  /* ===== 데모용 색상 선택 바 ===== */
+  const root = document.documentElement.style;
+  $('cBg').oninput   = e => root.setProperty('--fencing-bg', e.target.value);
+  $('cFg').oninput   = e => root.setProperty('--fencing-fg', e.target.value);
+  $('cLine').oninput = e => root.setProperty('--fencing-line', e.target.value);
+})();
+</script>
+</body>
+</html>

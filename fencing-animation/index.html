@@ -38,18 +38,28 @@
         <feMorphology in="blob" operator="erode" radius="1.4" result="inner"/>
         <feComposite in="blob" in2="inner" operator="out"/>
       </filter>
+      <!-- 오른쪽 알약이 덮은 부분만큼 왼쪽 채움을 깎아냄 (초승달 효과) -->
+      <mask id="fa-cut" maskUnits="userSpaceOnUse" x="0" y="0" width="714" height="184">
+        <rect width="714" height="184" fill="#fff"/>
+        <g filter="url(#fa-goo)" fill="#000">
+          <rect class="pillB"/>
+          <circle class="bumpB" r="40"/>
+        </g>
+      </mask>
     </defs>
     <!-- 왼쪽 선수의 채워진 알약 -->
-    <g id="fillGroup" filter="url(#fa-goo)" fill="var(--fencing-fg)">
-      <rect class="pillA" y="27" height="130" rx="65"/>
-      <circle class="bumpA" cy="92" r="40"/>
+    <g mask="url(#fa-cut)">
+      <g id="fillGroup" filter="url(#fa-goo)" fill="var(--fencing-fg)">
+        <rect class="pillA"/>
+        <circle class="bumpA" r="40"/>
+      </g>
     </g>
     <!-- 두 알약의 외곽선 (합쳐지면 하나가 됨) -->
     <g filter="url(#fa-goo-ring)" fill="var(--fencing-line)">
-      <rect class="pillA" y="27" height="130" rx="65"/>
-      <circle class="bumpA" cy="92" r="40"/>
-      <rect class="pillB" y="27" height="130" rx="65"/>
-      <circle class="bumpB" cy="92" r="40"/>
+      <rect class="pillA"/>
+      <circle class="bumpA" r="40"/>
+      <rect class="pillB"/>
+      <circle class="bumpB" r="40"/>
     </g>
     <g id="fighterA"></g>
     <g id="fighterB"></g>
@@ -72,116 +82,146 @@
   const lerp = (a, b, u) => a + (b - a) * u;
   const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
   const smooth = (a, b, x) => { const u = clamp((x - a) / (b - a)); return u * u * (3 - 2 * u); };
+  const wrapT = t => ((t % LOOP) + LOOP) % LOOP;
+
+  /* ===== 쫀득한 움직임 =====
+     빠르게 튀어나가 목표를 살짝 지나쳤다가 고무줄처럼 되돌아와 멈춤.
+     BOUNCE를 키우면 더 출렁이고, 줄이면 더 단단해짐 */
+  const BOUNCE = 1;
+  const spring = u => u <= 0 ? 0 : 1 - Math.exp(-6 * u) * Math.cos(10 * BOUNCE * u);
 
   /* ===== 자세 =====
      lean: 상체 기울기 / ft,fs: 앞다리 허벅지·정강이 / bt,bs: 뒷다리 (아래 방향 기준, +가 앞)
      fa1,fa2: 칼 든 팔 / ba1,ba2: 뒤쪽 팔 (앞 방향 기준, +가 위) / sw: 칼 각도 */
   const KEYS = ['lean', 'ft', 'fs', 'bt', 'bs', 'fa1', 'fa2', 'ba1', 'ba2', 'sw'];
   const P = {
-    guard:     { lean: 5,  ft: 48, fs: -2,  bt: -42, bs: -18,  fa1: -22, fa2: 14, ba1: -150, ba2: -95,  sw: 8   },
-    advance:   { lean: 9,  ft: 56, fs: 4,   bt: -34, bs: -12,  fa1: -12, fa2: 10, ba1: -155, ba2: -110, sw: 2   },
+    guard:     { lean: 5,  ft: 48, fs: -2,  bt: -42, bs: -18, fa1: -22, fa2: 14, ba1: -150, ba2: -95,  sw: 8   },
+    advance:   { lean: 9,  ft: 56, fs: 4,   bt: -34, bs: -12, fa1: -12, fa2: 10, ba1: -155, ba2: -110, sw: 2   },
     retreat:   { lean: -2, ft: 40, fs: -10, bt: -48, bs: -22, fa1: -18, fa2: 16, ba1: -145, ba2: -92,  sw: 18  },
-    ready:     { lean: 3,  ft: 46, fs: -4,  bt: -40, bs: -16,  fa1: -12, fa2: 22, ba1: -150, ba2: -100, sw: 16  },
-    // 찌르기
-    lunge:     { lean: 16, ft: 80, fs: 8,   bt: -72, bs: -76, fa1: 0,   fa2: 0,  ba1: -185, ba2: -172, sw: 0   },
-    thrust:    { lean: 10, ft: 52, fs: 6,   bt: -42, bs: -22, fa1: 2,   fa2: 0,  ba1: -170, ba2: -150, sw: 2   },
-    duckThrust:{ lean: 24, ft: 74, fs: -20, bt: -66, bs: -58, fa1: 0,   fa2: 0,  ba1: -180, ba2: -165, sw: -2  },
+    ready:     { lean: 3,  ft: 46, fs: -4,  bt: -40, bs: -16, fa1: -12, fa2: 22, ba1: -150, ba2: -100, sw: 16  },
+    // 찌르기 직전 몸을 살짝 움츠리는 예비 동작
+    load:      { lean: -4, ft: 38, fs: -14, bt: -48, bs: -26, fa1: -30, fa2: 4,  ba1: -140, ba2: -88,  sw: 12  },
+    // 찌르기 (몸과 팔이 한 줄로 쭉 늘어남)
+    lunge:     { lean: 30, ft: 84, fs: 10,  bt: -74, bs: -80, fa1: 6,   fa2: 2,  ba1: -190, ba2: -178, sw: 0   },
+    thrust:    { lean: 14, ft: 56, fs: 6,   bt: -46, bs: -26, fa1: 4,   fa2: 0,  ba1: -172, ba2: -155, sw: 2   },
+    duckThrust:{ lean: 34, ft: 82, fs: -26, bt: -72, bs: -62, fa1: 2,   fa2: 4,  ba1: -180, ba2: -165, sw: 6   },
     // 피하기
-    evade:     { lean: -16,ft: 30, fs: -20, bt: -56, bs: -30, fa1: -28, fa2: 8,  ba1: -140, ba2: -88,  sw: 12  },
+    evade:     { lean: -18,ft: 30, fs: -20, bt: -56, bs: -30, fa1: -28, fa2: 8,  ba1: -140, ba2: -88,  sw: 12  },
     duck:      { lean: 34, ft: 82, fs: -46, bt: -72, bs: -62, fa1: -45, fa2: -20,ba1: -150, ba2: -105, sw: -8  },
-    // 칼끝만 살짝 비켜 막기
-    deflect:   { lean: 0,  ft: 44, fs: -6,  bt: -42, bs: -18, fa1: -10, fa2: 24, ba1: -145, ba2: -95,  sw: 18  },
+    // 막기: 칼을 세워서 상대 칼을 받아냄
+    parry:     { lean: -4, ft: 42, fs: -10, bt: -44, bs: -20, fa1: -14, fa2: 30, ba1: -145, ba2: -92,  sw: 64  },
+    parryLow:  { lean: 8,  ft: 52, fs: -6,  bt: -46, bs: -22, fa1: -42, fa2: -24,ba1: -150, ba2: -100, sw: -60 },
   };
+  const HIT = { sw: 20, fa2: 10 };    // 막혀서 칼이 위로 튕겨나감
+  const HIT_LOW = { sw: -18 };        // 막혀서 칼이 아래로 튕겨나감
 
   /* ===== 안무 (선수마다 따로) =====
-     t: 시간(초) / x: 위치 / p: 자세 / o: 자세 미세조정
-     두 선수는 서로 다른 타이밍·자세로 움직여서 거울처럼 보이지 않게 함 */
+     t: 동작 시작 시간(초) / d: 동작에 걸리는 시간 / x: 위치 / p: 자세 / o: 자세 미세조정 */
   const TRACK_A = [
-    { t: 0,    x: 185, p: 'guard' },
-    { t: 0.9,  x: 197, p: 'advance' },
-    { t: 1.7,  x: 190, p: 'guard', o: { sw: -6 } },
-    { t: 2.5,  x: 180, p: 'ready' },
-    { t: 3.3,  x: 192, p: 'advance' },
-    { t: 4.2,  x: 230, p: 'guard' },
-    { t: 5.2,  x: 306, p: 'guard' },
-    { t: 5.9,  x: 334, p: 'lunge' },       // A 찌르기 → B 뒤로 피함
-    { t: 6.5,  x: 312, p: 'guard' },
-    { t: 7.1,  x: 288, p: 'evade' },       // B 찌르기 → A 몸을 젖혀 피함
-    { t: 7.8,  x: 304, p: 'guard' },
-    { t: 8.5,  x: 292, p: 'duck' },       // B 런지 → A 숙여서 피함
-    { t: 9.1,  x: 328, p: 'duckThrust' },  // 숙인 채로 반격
-    { t: 9.8,  x: 304, p: 'retreat' },
-    { t: 10.5, x: 324, p: 'thrust' },
-    { t: 11.2, x: 308, p: 'guard' },
-    { t: 12.3, x: 220, p: 'retreat' },
-    { t: 13.2, x: 182, p: 'guard', o: { sw: 6 } },
-    { t: 14.1, x: 194, p: 'advance' },
-    { t: 15.1, x: 180, p: 'ready', o: { sw: -14 } },
+    { t: 0,     x: 185, p: 'guard' },
+    { t: 0.7,   x: 197, p: 'advance', d: .25 },
+    { t: 1.3,   x: 191, p: 'guard', o: { sw: -6 } },
+    { t: 2.0,   x: 180, p: 'retreat', d: .25 },
+    { t: 2.6,   x: 186, p: 'ready' },
+    { t: 3.3,   x: 196, p: 'advance', d: .25 },
+    { t: 3.9,   x: 232, p: 'guard', d: .5 },
+    { t: 4.6,   x: 306, p: 'guard', d: .5 },
+    // 1합: A 찌르기 → B 막음 → B 반격 → A 젖혀 피함
+    { t: 5.75,  x: 298, p: 'load', d: .2 },
+    { t: 5.98,  x: 338, p: 'lunge', d: .22 },
+    { t: 6.2,   x: 336, p: 'lunge', o: HIT, d: .1 },
+    { t: 6.36,  x: 290, p: 'evade', d: .2 },
+    { t: 6.9,   x: 306, p: 'guard' },
+    // 2합: B 찌르기 → A 막음 → A 반격 → B 물러나 피함
+    { t: 7.28,  x: 302, p: 'parry', d: .14 },
+    { t: 7.72,  x: 324, p: 'thrust', d: .18 },
+    { t: 8.15,  x: 306, p: 'guard' },
+    // 3합: B 런지 → A 숙여 피함 → A 아래서 찌름 → B 칼을 내려 막음
+    { t: 8.7,   x: 292, p: 'duck', d: .16 },
+    { t: 8.98,  x: 326, p: 'duckThrust', d: .2 },
+    { t: 9.18,  x: 324, p: 'duckThrust', o: HIT_LOW, d: .1 },
+    { t: 9.6,   x: 306, p: 'guard' },
+    // 4합: A 찌르기 → B 피함 → B 반격 → A 막음
+    { t: 10.05, x: 300, p: 'load', d: .18 },
+    { t: 10.22, x: 326, p: 'thrust', d: .2 },
+    { t: 10.42, x: 310, p: 'parry', d: .12 },
+    { t: 10.9,  x: 306, p: 'guard' },
+    { t: 11.4,  x: 240, p: 'retreat', d: .5 },
+    { t: 12.0,  x: 185, p: 'guard', d: .5 },
+    { t: 12.8,  x: 195, p: 'advance', d: .25 },
+    { t: 13.5,  x: 188, p: 'guard', o: { sw: 6 } },
+    { t: 14.2,  x: 180, p: 'retreat', d: .25 },
+    { t: 14.9,  x: 192, p: 'advance', d: .25 },
+    { t: 15.5,  x: 186, p: 'guard' },
   ];
   const TRACK_B = [
-    { t: 0,    x: 529, p: 'guard', o: { sw: 6 } },
-    { t: 0.6,  x: 534, p: 'retreat' },
-    { t: 1.4,  x: 518, p: 'advance' },
-    { t: 2.2,  x: 524, p: 'guard', o: { sw: -4 } },
-    { t: 3.0,  x: 534, p: 'ready', o: { sw: -10 } },
-    { t: 3.8,  x: 522, p: 'guard' },
-    { t: 4.4,  x: 480, p: 'advance' },
-    { t: 5.3,  x: 408, p: 'guard' },
-    { t: 6.0,  x: 432, p: 'evade' },
-    { t: 6.5,  x: 412, p: 'guard' },
-    { t: 7.0,  x: 390, p: 'thrust' },
-    { t: 7.7,  x: 404, p: 'guard' },
-    { t: 8.4,  x: 384, p: 'lunge', o: { sw: 6, fa1: 6 } },
-    { t: 8.9,  x: 388, p: 'lunge', o: { sw: 8, fa1: 6 } },
-    { t: 9.2,  x: 424, p: 'evade' },
-    { t: 9.9,  x: 406, p: 'guard' },
-    { t: 10.5, x: 414, p: 'deflect' },
-    { t: 11.2, x: 408, p: 'guard' },
-    { t: 12.2, x: 490, p: 'retreat' },
-    { t: 13.0, x: 530, p: 'guard' },
-    { t: 13.8, x: 538, p: 'retreat' },
-    { t: 14.7, x: 522, p: 'advance', o: { sw: 8 } },
-    { t: 15.5, x: 526, p: 'guard' },
+    { t: 0,     x: 529, p: 'guard', o: { sw: 6 } },
+    { t: 0.5,   x: 535, p: 'retreat', d: .25 },
+    { t: 1.2,   x: 520, p: 'advance', d: .25 },
+    { t: 1.9,   x: 526, p: 'guard', o: { sw: -4 } },
+    { t: 2.5,   x: 533, p: 'ready', o: { sw: -6 } },
+    { t: 3.1,   x: 522, p: 'guard' },
+    { t: 3.8,   x: 482, p: 'advance', d: .5 },
+    { t: 4.6,   x: 410, p: 'guard', d: .5 },
+    { t: 5.9,   x: 414, p: 'parry', d: .12 },
+    { t: 6.42,  x: 394, p: 'thrust', d: .18 },
+    { t: 6.9,   x: 408, p: 'guard' },
+    { t: 7.12,  x: 416, p: 'load', d: .18 },
+    { t: 7.32,  x: 372, p: 'lunge', d: .22 },
+    { t: 7.54,  x: 374, p: 'lunge', o: HIT, d: .1 },
+    { t: 7.76,  x: 432, p: 'evade', d: .2 },
+    { t: 8.15,  x: 410, p: 'guard' },
+    { t: 8.5,   x: 416, p: 'load', d: .16 },
+    { t: 8.68,  x: 374, p: 'lunge', o: { sw: 6, fa1: 6 }, d: .2 },
+    { t: 8.94,  x: 400, p: 'parryLow', d: .14 },
+    { t: 9.6,   x: 408, p: 'guard' },
+    { t: 10.2,  x: 432, p: 'evade', d: .16 },
+    { t: 10.38, x: 390, p: 'thrust', d: .18 },
+    { t: 10.62, x: 392, p: 'thrust', o: HIT, d: .1 },
+    { t: 10.9,  x: 408, p: 'guard' },
+    { t: 11.4,  x: 470, p: 'retreat', d: .5 },
+    { t: 12.0,  x: 529, p: 'guard', d: .5 },
+    { t: 12.6,  x: 536, p: 'retreat', d: .25 },
+    { t: 13.3,  x: 521, p: 'advance', o: { sw: 8 }, d: .25 },
+    { t: 14.0,  x: 527, p: 'guard' },
+    { t: 14.7,  x: 532, p: 'ready', o: { sw: -8 } },
+    { t: 15.4,  x: 524, p: 'guard' },
   ];
-  // 알약 합체 정도 (0 = 따로, 1 = 하나)
+  // 알약 합체 정도 (0 = 따로, 1 = 하나). 튕기듯 합쳐지고 갈라짐
   const TRACK_M = [
     { t: 0,    m: 0 },
-    { t: 3.9,  m: 0 },
-    { t: 4.6,  m: 0.2 },
-    { t: 5.3,  m: 1 },
-    { t: 11.3, m: 1 },
-    { t: 12.0, m: 0.2 },
-    { t: 12.7, m: 0 },
+    { t: 3.9,  m: 0.2, d: .5 },
+    { t: 4.45, m: 1,   d: .55 },
+    { t: 11.3, m: 0.2, d: .45 },
+    { t: 11.85,m: 0,   d: .6 },
   ];
 
-  /* 키프레임 사이를 멈춤 없이 부드럽게 잇는 곡선 보간 (Catmull-Rom, 루프 연결) */
-  function hermite(track, t, vec) {
+  /* 키프레임 재생: 이전 동작이 덜 끝났어도 그 자리에서 이어서 출발 (끊김 없음) */
+  function snap(track, t, vec) {
     const n = track.length;
-    let i = n - 1;
-    for (let k = 0; k < n - 1; k++) if (t < track[k + 1].t) { i = k; break; }
-    const at = j => {
-      const w = ((j % n) + n) % n, wrap = Math.floor(j / n) * LOOP;
-      return { t: track[w].t + wrap, v: vec(track[w]) };
+    const T = j => track[((j % n) + n) % n].t + Math.floor(j / n) * LOOP;
+    const key = j => track[((j % n) + n) % n];
+    const value = (j, t, depth) => {
+      const k = key(j), to = vec(k);
+      const from = depth > 0 ? value(j - 1, T(j), depth - 1) : vec(key(j - 1));
+      const s = spring((t - T(j)) / (k.d || 0.3));
+      return from.map((f, i) => lerp(f, to[i], s));
     };
-    const p0 = at(i - 1), p1 = at(i), p2 = at(i + 1), p3 = at(i + 2);
-    const dt = p2.t - p1.t, u = (t - p1.t) / dt;
-    const h00 = 2*u*u*u - 3*u*u + 1, h10 = u*u*u - 2*u*u + u, h01 = -2*u*u*u + 3*u*u, h11 = u*u*u - u*u;
-    return p1.v.map((_, k) => {
-      const m1 = (p2.v[k] - p0.v[k]) / (p2.t - p0.t) * dt;
-      const m2 = (p3.v[k] - p1.v[k]) / (p3.t - p1.t) * dt;
-      return h00 * p1.v[k] + h10 * m1 + h01 * p2.v[k] + h11 * m2;
-    });
+    let j = 0;
+    while (j < n - 1 && T(j + 1) <= t) j++;
+    return value(j, t, 3);
   }
   const fighterVec = k => [k.x, ...KEYS.map(key => P[k.p][key] + ((k.o && k.o[key]) || 0))];
 
   /* 늘 살아 있는 느낌: 무릎 반동·칼끝 흔들림 (선수마다 다른 박자) */
   const TAU = Math.PI * 2;
   function sampleFighter(track, t, idle) {
-    const v = hermite(track, t, fighterVec);
+    t = wrapT(t);
+    const v = snap(track, t, fighterVec);
     const p = Object.fromEntries(KEYS.map((key, j) => [key, v[j + 1]]));
     const bob = Math.sin(TAU * idle.bob * t / LOOP + idle.phase);
     p.ft += bob * 5; p.fs -= bob * 5; p.bt -= bob * 3;
-    p.sw += Math.sin(TAU * idle.tip * t / LOOP + idle.phase * 2) * 3;
+    p.sw += Math.sin(TAU * idle.tip * t / LOOP + idle.phase * 2) * 4;
     p.fa2 += Math.sin(TAU * idle.tip * t / LOOP + idle.phase * 2 + 1) * 3;
     return { x: v[0], p };
   }
@@ -203,7 +243,6 @@
       head: mk('rect', { width: 10, height: 10, fill: 'currentColor' }),
       sword: mk('path', { 'stroke-width': 1.2, stroke: 'currentColor', fill: 'none' }),
       guard: mk('line', { 'stroke-width': 1.4, stroke: 'currentColor' }),
-      prevSw: null,
     };
   }
   const setLine = (el, x1, y1, x2, y2) => {
@@ -211,7 +250,8 @@
     el.setAttribute('x2', x2); el.setAttribute('y2', y2);
   };
 
-  function pose(f, p, cx, dir) {
+  // swPrev: 조금 전 칼 각도 → 차이만큼 칼날이 채찍처럼 뒤처져 휨
+  function pose(f, p, cx, dir, swPrev) {
     const down = a => [Math.sin(rad(a)), Math.cos(rad(a))];
     const fwd  = a => [Math.cos(rad(a)), -Math.sin(rad(a))];
     const leg = (t, s) => {
@@ -245,13 +285,11 @@
     seg(f.backArm[0], sh, ba[0]);  seg(f.backArm[1], ba[0], ba[1]);
     seg(f.frontArm[0], sh, fa[0]); seg(f.frontArm[1], fa[0], fa[1]);
 
-    // 칼: 움직이는 속도만큼 살짝 휘어지는 얇은 곡선
+    // 칼: 빠르게 움직일수록 칼날이 뒤처지며 휘어짐
     const hand = fa[1], [sx, sy] = fwd(p.sw);
     const tip = [hand[0] + sx * L.sword, hand[1] + sy * L.sword];
-    const vel = f.prevSw === null ? 0 : p.sw - f.prevSw;
-    f.prevSw = p.sw;
-    const bend = clamp(-vel * 0.8, -5, 5) + 1.5;
-    const mid = [(hand[0] + tip[0]) / 2 - sy * bend, (hand[1] + tip[1]) / 2 + sx * bend];
+    const bend = clamp((swPrev - p.sw) * 0.5, -14, 14) - 1.5;
+    const mid = [(hand[0] + tip[0]) / 2 + sy * bend, (hand[1] + tip[1]) / 2 - sx * bend];
     f.sword.setAttribute('d', `M${X(hand[0])},${Y(hand[1])} Q${X(mid[0])},${Y(mid[1])} ${X(tip[0])},${Y(tip[1])}`);
     seg(f.guard, [hand[0] - sy * 4, hand[1] + sx * 4], [hand[0] + sy * 4, hand[1] - sx * 4]);
 
@@ -266,31 +304,38 @@
   $('fighterB').style.color = 'var(--fencing-fg)';
 
   function render(t) {
-    t = ((t % LOOP) + LOOP) % LOOP;
-    const m = clamp(hermite(TRACK_M, t, k => [k.m])[0]);
+    t = wrapT(t);
+    const m = snap(TRACK_M, t, k => [k.m])[0];   // 튕길 때 0~1을 살짝 넘나듦
+    const mc = clamp(m);
 
-    // 알약: 서로 다가가며 액체처럼 이어지고, 하나의 경기장으로 합쳐짐
+    // 알약: 서로 다가가 액체처럼 이어지고, 출렁이며 하나의 경기장으로 합쳐짐
     const ax = lerp(110, 207, m), bx = lerp(404, 207, m), w = lerp(200, 300, m);
+    const h = 130 - (w - lerp(200, 300, mc)) * 0.45;           // 옆으로 늘어나면 위아래로 납작해짐
+    const y = 92 - h / 2;
     const bump = Math.sin(Math.PI * clamp(m / 0.45)) * 30;   // 맞닿기 직전 서로를 향해 부풀어 오름
-    all('.pillA').forEach(e => { e.setAttribute('x', ax); e.setAttribute('width', w); });
-    all('.pillB').forEach(e => { e.setAttribute('x', bx); e.setAttribute('width', w); });
-    all('.bumpA').forEach(e => e.setAttribute('cx', ax + w - 40 + bump));
-    all('.bumpB').forEach(e => e.setAttribute('cx', bx + 40 - bump * 0.6));
-    const fadeOut = smooth(.22, .42, m);
-    $('fillGroup').setAttribute('opacity', 1 - fadeOut);
+    const setPill = (sel, x) => all(sel).forEach(e => {
+      e.setAttribute('x', x); e.setAttribute('y', y);
+      e.setAttribute('width', w); e.setAttribute('height', h); e.setAttribute('rx', h / 2);
+    });
+    setPill('.pillA', ax);
+    setPill('.pillB', bx);
+    all('.bumpA').forEach(e => { e.setAttribute('cx', ax + w - 40 + bump); e.setAttribute('cy', 92); });
+    all('.bumpB').forEach(e => { e.setAttribute('cx', bx + 40 - bump * 0.6); e.setAttribute('cy', 92); });
+    $('fillGroup').setAttribute('opacity', 1 - smooth(.85, 1, mc));
     // 왼쪽 선수: 채워진 알약 위에서는 배경색, 합쳐진 뒤에는 메인 색
-    $('fighterA').style.color = `color-mix(in srgb, var(--fencing-fg) ${fadeOut * 100}%, var(--fencing-bg))`;
+    $('fighterA').style.color = `color-mix(in srgb, var(--fencing-fg) ${smooth(.3, .7, mc) * 100}%, var(--fencing-bg))`;
 
     const a = sampleFighter(TRACK_A, t, IDLE_A), b = sampleFighter(TRACK_B, t, IDLE_B);
-    pose(fA, a.p, a.x, 1);
-    pose(fB, b.p, b.x, -1);
+    const a0 = sampleFighter(TRACK_A, t - 0.05, IDLE_A), b0 = sampleFighter(TRACK_B, t - 0.05, IDLE_B);
+    pose(fA, a.p, a.x, 1, a0.p.sw);
+    pose(fB, b.p, b.x, -1, b0.p.sw);
   }
 
   /* ===== 재생 ===== */
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const fixed = new URLSearchParams(location.search).get('t');   // ?t=5 처럼 특정 시점 고정(테스트용)
   if (fixed !== null) render(parseFloat(fixed));
-  else if (reduce) render(6.2);
+  else if (reduce) render(6.3);
   else {
     let start = null;
     const tick = now => { if (start === null) start = now; render((now - start) / 1000); requestAnimationFrame(tick); };

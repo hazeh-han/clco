@@ -120,11 +120,8 @@
      t: 동작 시작 시간(초) / d: 동작에 걸리는 시간 / x: 위치 / p: 자세 / o: 자세 미세조정 */
   const TRACK_A = [
     { t: 0,     x: 185, p: 'guard' },
-    { t: 0.7,   x: 197, p: 'advance', d: .25 },
-    { t: 1.3,   x: 191, p: 'guard', o: { sw: -6 } },
-    { t: 2.0,   x: 180, p: 'retreat', d: .25 },
-    { t: 2.6,   x: 186, p: 'ready' },
-    { t: 3.3,   x: 196, p: 'advance', d: .25 },
+    { t: 1.4,   x: 190, p: 'guard', d: .6 },
+    { t: 2.8,   x: 184, p: 'guard', d: .6 },
     { t: 3.9,   x: 232, p: 'guard', d: .5 },
     { t: 4.6,   x: 306, p: 'guard', d: .5 },
     // 1합: A 찌르기 → B 막음 → B 반격 → A 젖혀 피함
@@ -149,19 +146,13 @@
     { t: 10.9,  x: 306, p: 'guard' },
     { t: 11.4,  x: 240, p: 'retreat', d: .5 },
     { t: 12.0,  x: 185, p: 'guard', d: .5 },
-    { t: 12.8,  x: 195, p: 'advance', d: .25 },
-    { t: 13.5,  x: 188, p: 'guard', o: { sw: 6 } },
-    { t: 14.2,  x: 180, p: 'retreat', d: .25 },
-    { t: 14.9,  x: 192, p: 'advance', d: .25 },
-    { t: 15.5,  x: 186, p: 'guard' },
+    { t: 13.4,  x: 191, p: 'guard', d: .6 },
+    { t: 14.8,  x: 184, p: 'guard', d: .6 },
   ];
   const TRACK_B = [
-    { t: 0,     x: 529, p: 'guard', o: { sw: 6 } },
-    { t: 0.5,   x: 535, p: 'retreat', d: .25 },
-    { t: 1.2,   x: 520, p: 'advance', d: .25 },
-    { t: 1.9,   x: 526, p: 'guard', o: { sw: -4 } },
-    { t: 2.5,   x: 533, p: 'ready', o: { sw: -6 } },
-    { t: 3.1,   x: 522, p: 'guard' },
+    { t: 0,     x: 529, p: 'guard' },
+    { t: 1.5,   x: 523, p: 'guard', d: .6 },
+    { t: 3.0,   x: 528, p: 'guard', d: .6 },
     { t: 3.8,   x: 482, p: 'advance', d: .5 },
     { t: 4.6,   x: 410, p: 'guard', d: .5 },
     { t: 5.9,   x: 414, p: 'parry', d: .12 },
@@ -182,11 +173,8 @@
     { t: 10.9,  x: 408, p: 'guard' },
     { t: 11.4,  x: 470, p: 'retreat', d: .5 },
     { t: 12.0,  x: 529, p: 'guard', d: .5 },
-    { t: 12.6,  x: 536, p: 'retreat', d: .25 },
-    { t: 13.3,  x: 521, p: 'advance', o: { sw: 8 }, d: .25 },
-    { t: 14.0,  x: 527, p: 'guard' },
-    { t: 14.7,  x: 532, p: 'ready', o: { sw: -8 } },
-    { t: 15.4,  x: 524, p: 'guard' },
+    { t: 13.5,  x: 524, p: 'guard', d: .6 },
+    { t: 14.9,  x: 530, p: 'guard', d: .6 },
   ];
   // 알약 합체 정도 (0 = 따로, 1 = 하나). 튕기듯 합쳐지고 갈라짐
   const TRACK_M = [
@@ -237,37 +225,22 @@
     t = wrapT(t);
     const v = track(t);
     const p = Object.fromEntries(KEYS.map((key, j) => [key, v[j + 1]]));
-    const bob = Math.sin(TAU * idle.bob * t / LOOP + idle.phase);
+    const together = smooth(0, 0.3, motionM(t)[0]);
+    const bob = Math.sin(TAU * idle.bob * t / LOOP + idle.phase) * together;
     p.ft += bob * 4; p.fs -= bob * 4; p.bt -= bob * 2.5;
-    p.sw += Math.sin(TAU * idle.tip * t / LOOP + idle.phase * 2) * 3;
-    p.fa2 += Math.sin(TAU * idle.tip * t / LOOP + idle.phase * 2 + 1) * 2;
-    // 떨어져 있을 때만 제자리 스텝 (합쳐지면 자연스럽게 사라짐)
+    p.sw += Math.sin(TAU * idle.tip * t / LOOP + idle.phase * 2) * 2;
+    // 떨어져 있을 때만 제자리에서 가볍게 통통 (합쳐지면 자연스럽게 사라짐)
     const apart = 1 - smooth(0, 0.3, motionM(t)[0]);
-    const st = footwork(t, idle.steps, idle.stepShift);
-    p.ft += st.ft * apart; p.fs += st.fs * apart;
-    p.bt += st.bt * apart; p.bs += st.bs * apart;
-    return { x: v[0] + st.dx * apart, p };
+    const hop = Math.abs(Math.sin(Math.PI * idle.hops * t / LOOP + idle.phase));   // 0 = 착지, 1 = 가장 높이
+    const land = (1 - hop) ** 3;                                                    // 착지 순간 무릎으로 받기
+    p.lift = hop * HOP * apart;
+    p.ft += land * 7 * apart; p.fs -= land * 7 * apart; p.bt -= land * 5 * apart;
+    return { x: v[0], p };
   }
+  const HOP = 3.5;   // 뛰는 높이 (0이면 안 뜀)
 
-  /* 제자리 스텝: 전진(앞발 먼저 → 뒷발 따라옴)과 후진(뒷발 먼저 → 앞발 따라옴)을 번갈아 함
-     steps: 루프당 전진+후진 묶음 수 / STEP: 한 걸음 거리 / LIFT: 발을 드는 높이 */
-  const STEP = 9, LIFT = 1;
-  function footwork(t, steps, shift) {
-    const cyc = t * steps / LOOP + shift;
-    const ph = cyc - Math.floor(cyc);                  // 0~1: 앞쪽 절반 전진, 뒤쪽 절반 후진
-    const fwd = ph < 0.5, u = (ph % 0.5) * 2;
-    const bell = (a, b) => { const k = clamp((u - a) / (b - a)); return Math.sin(Math.PI * k) ** 2; };
-    const first = bell(0.05, 0.4), second = bell(0.42, 0.8);
-    const front = fwd ? first : second, back = fwd ? second : first;
-    const move = 0.5 * smooth(0.05, 0.4, u) + 0.5 * smooth(0.42, 0.8, u);
-    return {
-      ft: front * 16 * LIFT, fs: -front * 26 * LIFT,   // 앞무릎을 들어 앞발이 뜸
-      bt: back * 14 * LIFT,  bs: -back * 24 * LIFT,    // 뒷무릎을 굽혀 뒷발이 뜸
-      dx: (fwd ? move : 1 - move) * STEP,
-    };
-  }
-  const IDLE_A = { bob: 10, tip: 6, phase: 0,   steps: 10, stepShift: 0 };    // 루프당 반복 횟수 (정수여야 이음매가 매끄러움)
-  const IDLE_B = { bob: 9,  tip: 5, phase: 1.9, steps: 8,  stepShift: 0.3 };
+  const IDLE_A = { bob: 10, tip: 6, phase: 0,   hops: 26 };    // 루프당 반복 횟수 (정수여야 이음매가 매끄러움)
+  const IDLE_B = { bob: 9,  tip: 5, phase: 1.9, hops: 24 };
 
   /* ===== 선수(막대 인형) ===== */
   function makeFighter(group) {
@@ -301,7 +274,7 @@
       return [k, [k[0] + sx * L.shin, k[1] + sy * L.shin]];
     };
     const fl = leg(p.ft, p.fs), bl = leg(p.bt, p.bs);
-    const hipY = GROUND - Math.max(fl[1][1], bl[1][1]);   // 발이 항상 바닥에 닿도록
+    const hipY = GROUND - Math.max(fl[1][1], bl[1][1]) - (p.lift || 0);   // 발이 바닥에 닿도록 (뛸 때만 살짝 뜸)
     const X = x => cx + dir * x, Y = y => hipY + y;
     const seg = (el, a, b) => setLine(el, X(a[0]), Y(a[1]), X(b[0]), Y(b[1]));
 

@@ -241,10 +241,33 @@
     p.ft += bob * 4; p.fs -= bob * 4; p.bt -= bob * 2.5;
     p.sw += Math.sin(TAU * idle.tip * t / LOOP + idle.phase * 2) * 3;
     p.fa2 += Math.sin(TAU * idle.tip * t / LOOP + idle.phase * 2 + 1) * 2;
-    return { x: v[0], p };
+    // 떨어져 있을 때만 제자리 스텝 (합쳐지면 자연스럽게 사라짐)
+    const apart = 1 - smooth(0, 0.3, motionM(t)[0]);
+    const st = footwork(t, idle.steps, idle.stepShift);
+    p.ft += st.ft * apart; p.fs += st.fs * apart;
+    p.bt += st.bt * apart; p.bs += st.bs * apart;
+    return { x: v[0] + st.dx * apart, p };
   }
-  const IDLE_A = { bob: 10, tip: 6, phase: 0 };    // 루프당 반복 횟수 (정수여야 이음매가 매끄러움)
-  const IDLE_B = { bob: 9, tip: 5, phase: 1.9 };
+
+  /* 제자리 스텝: 전진(앞발 먼저 → 뒷발 따라옴)과 후진(뒷발 먼저 → 앞발 따라옴)을 번갈아 함
+     steps: 루프당 전진+후진 묶음 수 / STEP: 한 걸음 거리 / LIFT: 발을 드는 높이 */
+  const STEP = 9, LIFT = 1;
+  function footwork(t, steps, shift) {
+    const cyc = t * steps / LOOP + shift;
+    const ph = cyc - Math.floor(cyc);                  // 0~1: 앞쪽 절반 전진, 뒤쪽 절반 후진
+    const fwd = ph < 0.5, u = (ph % 0.5) * 2;
+    const bell = (a, b) => { const k = clamp((u - a) / (b - a)); return Math.sin(Math.PI * k) ** 2; };
+    const first = bell(0.05, 0.4), second = bell(0.42, 0.8);
+    const front = fwd ? first : second, back = fwd ? second : first;
+    const move = 0.5 * smooth(0.05, 0.4, u) + 0.5 * smooth(0.42, 0.8, u);
+    return {
+      ft: front * 16 * LIFT, fs: -front * 26 * LIFT,   // 앞무릎을 들어 앞발이 뜸
+      bt: back * 14 * LIFT,  bs: -back * 24 * LIFT,    // 뒷무릎을 굽혀 뒷발이 뜸
+      dx: (fwd ? move : 1 - move) * STEP,
+    };
+  }
+  const IDLE_A = { bob: 10, tip: 6, phase: 0,   steps: 10, stepShift: 0 };    // 루프당 반복 횟수 (정수여야 이음매가 매끄러움)
+  const IDLE_B = { bob: 9,  tip: 5, phase: 1.9, steps: 8,  stepShift: 0.3 };
 
   /* ===== 선수(막대 인형) ===== */
   function makeFighter(group) {

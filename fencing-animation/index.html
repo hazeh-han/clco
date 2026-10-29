@@ -56,7 +56,12 @@
         </g>
       </mask>
       <g id="fighterA"></g>
+      <clipPath id="fa-left"><rect id="clipLeft" y="0" height="184"/></clipPath>
+      <clipPath id="fa-right"><rect id="clipRight" y="0" height="184"/></clipPath>
     </defs>
+    <!-- 찌를 때 공격하는 선수 등 뒤로 살짝 열리는 색 틈 -->
+    <path id="kickA" fill="var(--fencing-fg)" fill-rule="evenodd" clip-path="url(#fa-left)"/>
+    <path id="kickB" fill="var(--fencing-fg)" fill-rule="evenodd" clip-path="url(#fa-right)"/>
     <!-- 왼쪽 선수의 채워진 알약 -->
     <g mask="url(#fa-cut)">
       <g id="fillGroup" filter="url(#fa-goo)" fill="var(--fencing-fg)">
@@ -247,7 +252,8 @@
     p.ft += land * 7 * apart; p.fs -= land * 7 * apart; p.bt -= land * 5 * apart;
     return { x: v[0], p };
   }
-  const HOP = 3.5;   // 뛰는 높이 (0이면 안 뜀)
+  const HOP = 3.5;
+  const KICK = 12;   // 찌를 때 등 뒤로 열리는 색 틈의 최대 두께 (0이면 없음)   // 뛰는 높이 (0이면 안 뜀)
 
   const IDLE_A = { bob: 10, tip: 6, phase: 0,   hops: 26 };    // 루프당 반복 횟수 (정수여야 이음매가 매끄러움)
   const IDLE_B = { bob: 9,  tip: 5, phase: 1.9, hops: 24 };
@@ -351,10 +357,20 @@
     setPill('.pillB', bx);
     all('.bumpA').forEach(e => { e.setAttribute('cx', ax + w - 40 + bump); e.setAttribute('cy', 92); });
     all('.bumpB').forEach(e => { e.setAttribute('cx', bx + 40 - bump * 0.6); e.setAttribute('cy', 92); });
-    $('fillGroup').setAttribute('opacity', 1 - smooth(.96, 1, mc));
+    
 
     const a = sampleFighter(motionA, t, IDLE_A), b = sampleFighter(motionB, t, IDLE_B);
     const a0 = sampleFighter(motionA, t - 0.05, IDLE_A), b0 = sampleFighter(motionB, t - 0.05, IDLE_B);
+    // 찌르기 색 틈: 앞으로 튀어나가는 속도만큼 등 뒤쪽 알약 안쪽이 열림
+    const kick = (vel) => clamp((vel - 60) / 200) * KICK * smooth(.9, 1, mc);
+    const ux = Math.min(ax, bx), uw = Math.max(ax, bx) + w - ux;   // 출렁이는 중에도 외곽선과 딱 맞게 두 알약을 합친 범위
+    const rr = (x) => { const r = h / 2; return `M${x + r},${y}H${x + uw - r}A${r},${r} 0 0 1 ${x + uw - r},${y + h}H${x + r}A${r},${r} 0 0 1 ${x + r},${y}Z`; };
+    const sA = kick((a.x - a0.x) / 0.05), sB = kick((b0.x - b.x) / 0.05);
+    $('kickA').setAttribute('d', sA > 0.2 ? rr(ux) + rr(ux + sA) : '');
+    $('kickB').setAttribute('d', sB > 0.2 ? rr(ux) + rr(ux - sB) : '');
+    $('clipLeft').setAttribute('x', 0);  $('clipLeft').setAttribute('width', ux + uw / 2);
+    $('clipRight').setAttribute('x', ux + uw / 2); $('clipRight').setAttribute('width', 714);
+
     pose(fA, a.p, a.x, 1, a0.p.sw);
     pose(fB, b.p, b.x, -1, b0.p.sw);
   }

@@ -84,11 +84,12 @@
   const smooth = (a, b, x) => { const u = clamp((x - a) / (b - a)); return u * u * (3 - 2 * u); };
   const wrapT = t => ((t % LOOP) + LOOP) % LOOP;
 
-  /* ===== 쫀득한 움직임 =====
-     빠르게 튀어나가 목표를 살짝 지나쳤다가 고무줄처럼 되돌아와 멈춤.
-     BOUNCE를 키우면 더 출렁이고, 줄이면 더 단단해짐 */
-  const BOUNCE = 1;
-  const spring = u => u <= 0 ? 0 : 1 - Math.exp(-6 * u) * Math.cos(10 * BOUNCE * u);
+  /* ===== 부드러운 움직임 =====
+     각 관절이 목표 자세를 '관성 있는 용수철'처럼 따라감:
+     천천히 출발 → 빨라짐 → 천천히 멈춤 (1 2 3 5 7 9 7 4 2 1)
+     SOFTNESS: 1에 가까울수록 반동 없이 스르륵, 낮출수록(예: 0.6) 말랑하게 한 번 출렁 */
+  const SOFTNESS = 0.85;
+  const JELLY = 0.55;          // 알약의 출렁임 (낮을수록 더 출렁)
 
   /* ===== 자세 =====
      lean: 상체 기울기 / ft,fs: 앞다리 허벅지·정강이 / bt,bs: 뒷다리 (아래 방향 기준, +가 앞)
@@ -129,17 +130,17 @@
     // 1합: A 찌르기 → B 막음 → B 반격 → A 젖혀 피함
     { t: 5.75,  x: 298, p: 'load', d: .2 },
     { t: 5.98,  x: 338, p: 'lunge', d: .22 },
-    { t: 6.2,   x: 336, p: 'lunge', o: HIT, d: .1 },
-    { t: 6.36,  x: 290, p: 'evade', d: .2 },
+    { t: 6.32,  x: 336, p: 'lunge', o: HIT, d: .12 },
+    { t: 6.5,   x: 290, p: 'evade', d: .2 },
     { t: 6.9,   x: 306, p: 'guard' },
     // 2합: B 찌르기 → A 막음 → A 반격 → B 물러나 피함
     { t: 7.28,  x: 302, p: 'parry', d: .14 },
-    { t: 7.72,  x: 324, p: 'thrust', d: .18 },
+    { t: 7.82,  x: 324, p: 'thrust', d: .18 },
     { t: 8.15,  x: 306, p: 'guard' },
     // 3합: B 런지 → A 숙여 피함 → A 아래서 찌름 → B 칼을 내려 막음
     { t: 8.7,   x: 292, p: 'duck', d: .16 },
     { t: 8.98,  x: 326, p: 'duckThrust', d: .2 },
-    { t: 9.18,  x: 324, p: 'duckThrust', o: HIT_LOW, d: .1 },
+    { t: 9.3,   x: 324, p: 'duckThrust', o: HIT_LOW, d: .12 },
     { t: 9.6,   x: 306, p: 'guard' },
     // 4합: A 찌르기 → B 피함 → B 반격 → A 막음
     { t: 10.05, x: 300, p: 'load', d: .18 },
@@ -164,12 +165,12 @@
     { t: 3.8,   x: 482, p: 'advance', d: .5 },
     { t: 4.6,   x: 410, p: 'guard', d: .5 },
     { t: 5.9,   x: 414, p: 'parry', d: .12 },
-    { t: 6.42,  x: 394, p: 'thrust', d: .18 },
+    { t: 6.5,   x: 394, p: 'thrust', d: .18 },
     { t: 6.9,   x: 408, p: 'guard' },
     { t: 7.12,  x: 416, p: 'load', d: .18 },
     { t: 7.32,  x: 372, p: 'lunge', d: .22 },
-    { t: 7.54,  x: 374, p: 'lunge', o: HIT, d: .1 },
-    { t: 7.76,  x: 432, p: 'evade', d: .2 },
+    { t: 7.66,  x: 374, p: 'lunge', o: HIT, d: .12 },
+    { t: 7.86,  x: 432, p: 'evade', d: .2 },
     { t: 8.15,  x: 410, p: 'guard' },
     { t: 8.5,   x: 416, p: 'load', d: .16 },
     { t: 8.68,  x: 374, p: 'lunge', o: { sw: 6, fa1: 6 }, d: .2 },
@@ -177,7 +178,7 @@
     { t: 9.6,   x: 408, p: 'guard' },
     { t: 10.2,  x: 432, p: 'evade', d: .16 },
     { t: 10.38, x: 390, p: 'thrust', d: .18 },
-    { t: 10.62, x: 392, p: 'thrust', o: HIT, d: .1 },
+    { t: 10.72, x: 392, p: 'thrust', o: HIT, d: .12 },
     { t: 10.9,  x: 408, p: 'guard' },
     { t: 11.4,  x: 470, p: 'retreat', d: .5 },
     { t: 12.0,  x: 529, p: 'guard', d: .5 },
@@ -196,20 +197,37 @@
     { t: 11.85,m: 0,   d: .6 },
   ];
 
-  /* 키프레임 재생: 이전 동작이 덜 끝났어도 그 자리에서 이어서 출발 (끊김 없음) */
-  function snap(track, t, vec) {
-    const n = track.length;
-    const T = j => track[((j % n) + n) % n].t + Math.floor(j / n) * LOOP;
-    const key = j => track[((j % n) + n) % n];
-    const value = (j, t, depth) => {
-      const k = key(j), to = vec(k);
-      const from = depth > 0 ? value(j - 1, T(j), depth - 1) : vec(key(j - 1));
-      const s = spring((t - T(j)) / (k.d || 0.3));
-      return from.map((f, i) => lerp(f, to[i], s));
+  /* 키프레임 → 부드러운 움직임 미리 계산 (루프 한 바퀴를 1/120초 단위로 기록)
+     d: 동작에 걸리는 대략적인 시간 — 작을수록 빠른 동작 */
+  const RATE = 120;
+  function bake(track, vec, zeta) {
+    const n = track.length, dims = vec(track[0]).length;
+    const target = t => {
+      let j = n - 1;
+      for (let k = 0; k < n; k++) if (track[k].t <= t) j = k;
+      return track[j];
     };
-    let j = 0;
-    while (j < n - 1 && T(j + 1) <= t) j++;
-    return value(j, t, 3);
+    const x = vec(track[n - 1]), v = new Array(dims).fill(0);
+    const out = [];
+    const steps = LOOP * RATE, sub = 4, dt = 1 / (RATE * sub);
+    for (let lap = 0; lap < 3; lap++) {             // 두 바퀴 돌려 이음매를 안정시킨 뒤 세 번째 바퀴를 기록
+      for (let s = 0; s < steps; s++) {
+        const k = target(s / RATE), goal = vec(k);
+        const w = Math.min(16, 2.6 / (k.d || 0.35));
+        for (let q = 0; q < sub; q++) {
+          for (let i = 0; i < dims; i++) {
+            v[i] += (w * w * (goal[i] - x[i]) - 2 * zeta * w * v[i]) * dt;
+            x[i] += v[i] * dt;
+          }
+        }
+        if (lap === 2) out.push(x.slice());
+      }
+    }
+    return t => {
+      const f = wrapT(t) * RATE, i = Math.floor(f), u = f - i;
+      const a = out[i % steps], b = out[(i + 1) % steps];
+      return a.map((val, k) => lerp(val, b[k], u));
+    };
   }
   const fighterVec = k => [k.x, ...KEYS.map(key => P[k.p][key] + ((k.o && k.o[key]) || 0))];
 
@@ -217,16 +235,16 @@
   const TAU = Math.PI * 2;
   function sampleFighter(track, t, idle) {
     t = wrapT(t);
-    const v = snap(track, t, fighterVec);
+    const v = track(t);
     const p = Object.fromEntries(KEYS.map((key, j) => [key, v[j + 1]]));
     const bob = Math.sin(TAU * idle.bob * t / LOOP + idle.phase);
-    p.ft += bob * 5; p.fs -= bob * 5; p.bt -= bob * 3;
-    p.sw += Math.sin(TAU * idle.tip * t / LOOP + idle.phase * 2) * 4;
-    p.fa2 += Math.sin(TAU * idle.tip * t / LOOP + idle.phase * 2 + 1) * 3;
+    p.ft += bob * 4; p.fs -= bob * 4; p.bt -= bob * 2.5;
+    p.sw += Math.sin(TAU * idle.tip * t / LOOP + idle.phase * 2) * 3;
+    p.fa2 += Math.sin(TAU * idle.tip * t / LOOP + idle.phase * 2 + 1) * 2;
     return { x: v[0], p };
   }
-  const IDLE_A = { bob: 13, tip: 9, phase: 0 };    // 루프당 반복 횟수 (정수여야 이음매가 매끄러움)
-  const IDLE_B = { bob: 11, tip: 7, phase: 1.9 };
+  const IDLE_A = { bob: 10, tip: 6, phase: 0 };    // 루프당 반복 횟수 (정수여야 이음매가 매끄러움)
+  const IDLE_B = { bob: 9, tip: 5, phase: 1.9 };
 
   /* ===== 선수(막대 인형) ===== */
   function makeFighter(group) {
@@ -288,7 +306,7 @@
     // 칼: 빠르게 움직일수록 칼날이 뒤처지며 휘어짐
     const hand = fa[1], [sx, sy] = fwd(p.sw);
     const tip = [hand[0] + sx * L.sword, hand[1] + sy * L.sword];
-    const bend = clamp((swPrev - p.sw) * 0.5, -14, 14) - 1.5;
+    const bend = clamp((swPrev - p.sw) * 0.35, -8, 8) - 1.5;
     const mid = [(hand[0] + tip[0]) / 2 + sy * bend, (hand[1] + tip[1]) / 2 - sx * bend];
     f.sword.setAttribute('d', `M${X(hand[0])},${Y(hand[1])} Q${X(mid[0])},${Y(mid[1])} ${X(tip[0])},${Y(tip[1])}`);
     seg(f.guard, [hand[0] - sy * 4, hand[1] + sx * 4], [hand[0] + sy * 4, hand[1] - sx * 4]);
@@ -300,12 +318,15 @@
 
   const $ = id => document.getElementById(id);
   const all = sel => document.querySelectorAll('#fencing-anim ' + sel);
+  const motionA = bake(TRACK_A, fighterVec, SOFTNESS);
+  const motionB = bake(TRACK_B, fighterVec, SOFTNESS);
+  const motionM = bake(TRACK_M, k => [k.m], JELLY);
   const fA = makeFighter($('fighterA')), fB = makeFighter($('fighterB'));
   $('fighterB').style.color = 'var(--fencing-fg)';
 
   function render(t) {
     t = wrapT(t);
-    const m = snap(TRACK_M, t, k => [k.m])[0];   // 튕길 때 0~1을 살짝 넘나듦
+    const m = motionM(t)[0];   // 출렁일 때 0~1을 살짝 넘나듦
     const mc = clamp(m);
 
     // 알약: 서로 다가가 액체처럼 이어지고, 출렁이며 하나의 경기장으로 합쳐짐
@@ -325,8 +346,8 @@
     // 왼쪽 선수: 채워진 알약 위에서는 배경색, 합쳐진 뒤에는 메인 색
     $('fighterA').style.color = `color-mix(in srgb, var(--fencing-fg) ${smooth(.3, .7, mc) * 100}%, var(--fencing-bg))`;
 
-    const a = sampleFighter(TRACK_A, t, IDLE_A), b = sampleFighter(TRACK_B, t, IDLE_B);
-    const a0 = sampleFighter(TRACK_A, t - 0.05, IDLE_A), b0 = sampleFighter(TRACK_B, t - 0.05, IDLE_B);
+    const a = sampleFighter(motionA, t, IDLE_A), b = sampleFighter(motionB, t, IDLE_B);
+    const a0 = sampleFighter(motionA, t - 0.05, IDLE_A), b0 = sampleFighter(motionB, t - 0.05, IDLE_B);
     pose(fA, a.p, a.x, 1, a0.p.sw);
     pose(fB, b.p, b.x, -1, b0.p.sw);
   }

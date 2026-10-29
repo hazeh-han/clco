@@ -253,7 +253,23 @@
     return { x: v[0], p };
   }
   const HOP = 3.5;   // 뛰는 높이 (0이면 안 뜀)
-  const KICK = 12;   // 찌를 때 수비 쪽 알약이 바깥으로 밀려나는 최대 거리 (0이면 없음)
+  /* 찌를 때 수비 쪽 알약이 바깥으로 밀려나는 거리 (공격마다 따로)
+     t: 공격 시작 시간 / by: 공격하는 선수 / k: 밀려나는 거리 (0이면 없음) */
+  const KICKS = [
+    { t: 5.98,  by: 'A', k: 14 },   // A 런지
+    { t: 6.5,   by: 'B', k: 8  },   // B 반격 찌르기
+    { t: 7.32,  by: 'B', k: 18 },   // B 런지
+    { t: 7.82,  by: 'A', k: 10 },   // A 반격 찌르기
+    { t: 8.68,  by: 'B', k: 16 },   // B 런지
+    { t: 8.98,  by: 'A', k: 12 },   // A 숙여서 찌르기
+    { t: 10.22, by: 'A', k: 6  },   // A 찌르기
+    { t: 10.38, by: 'B', k: 4  },   // B 반격 찌르기
+  ];
+  // 공격 직후 빠르게 밀려났다가 천천히 돌아옴
+  const kickAt = (t, who) => KICKS.reduce((sum, e) => {
+    const u = t - e.t;
+    return e.by === who ? sum + e.k * smooth(0.04, 0.2, u) * (1 - smooth(0.25, 0.65, u)) : sum;
+  }, 0);
 
   const IDLE_A = { bob: 10, tip: 6, phase: 0,   hops: 26 };    // 루프당 반복 횟수 (정수여야 이음매가 매끄러움)
   const IDLE_B = { bob: 9,  tip: 5, phase: 1.9, hops: 24 };
@@ -362,10 +378,9 @@
     const a = sampleFighter(motionA, t, IDLE_A), b = sampleFighter(motionB, t, IDLE_B);
     const a0 = sampleFighter(motionA, t - 0.05, IDLE_A), b0 = sampleFighter(motionB, t - 0.05, IDLE_B);
     // 찌르기 충격: 공격자가 앞으로 튀어나가는 속도만큼 수비 쪽 알약 끝이 바깥으로 밀려남
-    const kick = (vel) => clamp((vel - 60) / 200) * KICK * smooth(.9, 1, mc);
     const ux = Math.min(ax, bx), uw = Math.max(ax, bx) + w - ux;   // 출렁이는 중에도 외곽선과 딱 맞게 두 알약을 합친 범위
     const rr = (x) => { const r = h / 2; return `M${x + r},${y}H${x + uw - r}A${r},${r} 0 0 1 ${x + uw - r},${y + h}H${x + r}A${r},${r} 0 0 1 ${x + r},${y}Z`; };
-    const sA = kick((a.x - a0.x) / 0.05), sB = kick((b0.x - b.x) / 0.05);
+    const sA = kickAt(t, 'A') * smooth(.9, 1, mc), sB = kickAt(t, 'B') * smooth(.9, 1, mc);
     $('kickA').setAttribute('d', sA > 0.2 ? rr(ux) + rr(ux + sA) : '');
     $('kickB').setAttribute('d', sB > 0.2 ? rr(ux) + rr(ux - sB) : '');
     $('clipLeft').setAttribute('x', 0);  $('clipLeft').setAttribute('width', ux + uw / 2);

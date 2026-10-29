@@ -81,13 +81,16 @@
     guard:     { lean: 5,  ft: 48, fs: -2,  bt: -42, bs: -18,  fa1: -22, fa2: 14, ba1: -150, ba2: -95,  sw: 8   },
     advance:   { lean: 9,  ft: 56, fs: 4,   bt: -34, bs: -12,  fa1: -12, fa2: 10, ba1: -155, ba2: -110, sw: 2   },
     retreat:   { lean: -2, ft: 40, fs: -10, bt: -48, bs: -22, fa1: -18, fa2: 16, ba1: -145, ba2: -92,  sw: 18  },
-    ready:     { lean: 3,  ft: 46, fs: -4,  bt: -40, bs: -16,  fa1: -8,  fa2: 32, ba1: -150, ba2: -100, sw: 34  },
+    ready:     { lean: 3,  ft: 46, fs: -4,  bt: -40, bs: -16,  fa1: -12, fa2: 22, ba1: -150, ba2: -100, sw: 16  },
+    // 찌르기
     lunge:     { lean: 16, ft: 80, fs: 8,   bt: -72, bs: -76, fa1: 0,   fa2: 0,  ba1: -185, ba2: -172, sw: 0   },
     thrust:    { lean: 10, ft: 52, fs: 6,   bt: -42, bs: -22, fa1: 2,   fa2: 0,  ba1: -170, ba2: -150, sw: 2   },
-    parry:     { lean: 0,  ft: 44, fs: -6,  bt: -40, bs: -16, fa1: 8,   fa2: 55, ba1: -145, ba2: -95,  sw: 60  },
-    highParry: { lean: -2, ft: 42, fs: -8,  bt: -38, bs: -16, fa1: 55,  fa2: 100,ba1: -140, ba2: -60,  sw: 160 },
-    cutHigh:   { lean: 6,  ft: 50, fs: 0,   bt: -40, bs: -16, fa1: 50,  fa2: 70, ba1: -160, ba2: -120, sw: 100 },
-    crouch:    { lean: 12, ft: 62, fs: -28, bt: -52, bs: -40, fa1: -10, fa2: 12, ba1: -150, ba2: -105, sw: 22  },
+    duckThrust:{ lean: 24, ft: 74, fs: -20, bt: -66, bs: -58, fa1: 0,   fa2: 0,  ba1: -180, ba2: -165, sw: -2  },
+    // 피하기
+    evade:     { lean: -16,ft: 30, fs: -20, bt: -56, bs: -30, fa1: -28, fa2: 8,  ba1: -140, ba2: -88,  sw: 12  },
+    duck:      { lean: 34, ft: 82, fs: -46, bt: -72, bs: -62, fa1: -45, fa2: -20,ba1: -150, ba2: -105, sw: -8  },
+    // 칼끝만 살짝 비켜 막기
+    deflect:   { lean: 0,  ft: 44, fs: -6,  bt: -42, bs: -18, fa1: -10, fa2: 24, ba1: -145, ba2: -95,  sw: 18  },
   };
 
   /* ===== 안무 (선수마다 따로) =====
@@ -101,12 +104,12 @@
     { t: 3.3,  x: 192, p: 'advance' },
     { t: 4.2,  x: 230, p: 'guard' },
     { t: 5.2,  x: 306, p: 'guard' },
-    { t: 5.9,  x: 334, p: 'lunge' },
-    { t: 6.6,  x: 312, p: 'guard' },
-    { t: 7.2,  x: 300, p: 'parry' },
-    { t: 7.9,  x: 314, p: 'cutHigh' },
-    { t: 8.5,  x: 306, p: 'guard' },
-    { t: 9.1,  x: 296, p: 'highParry' },
+    { t: 5.9,  x: 334, p: 'lunge' },       // A 찌르기 → B 뒤로 피함
+    { t: 6.5,  x: 312, p: 'guard' },
+    { t: 7.1,  x: 288, p: 'evade' },       // B 찌르기 → A 몸을 젖혀 피함
+    { t: 7.8,  x: 304, p: 'guard' },
+    { t: 8.5,  x: 292, p: 'duck' },       // B 런지 → A 숙여서 피함
+    { t: 9.1,  x: 328, p: 'duckThrust' },  // 숙인 채로 반격
     { t: 9.8,  x: 304, p: 'retreat' },
     { t: 10.5, x: 324, p: 'thrust' },
     { t: 11.2, x: 308, p: 'guard' },
@@ -124,14 +127,15 @@
     { t: 3.8,  x: 522, p: 'guard' },
     { t: 4.4,  x: 480, p: 'advance' },
     { t: 5.3,  x: 408, p: 'guard' },
-    { t: 6.0,  x: 416, p: 'highParry' },
-    { t: 6.7,  x: 392, p: 'thrust' },
-    { t: 7.3,  x: 404, p: 'guard' },
-    { t: 7.9,  x: 412, p: 'crouch' },
-    { t: 8.6,  x: 382, p: 'lunge' },
-    { t: 9.2,  x: 384, p: 'lunge', o: { sw: 10, fa2: 6 } },
+    { t: 6.0,  x: 432, p: 'evade' },
+    { t: 6.5,  x: 412, p: 'guard' },
+    { t: 7.0,  x: 390, p: 'thrust' },
+    { t: 7.7,  x: 404, p: 'guard' },
+    { t: 8.4,  x: 384, p: 'lunge', o: { sw: 6, fa1: 6 } },
+    { t: 8.9,  x: 388, p: 'lunge', o: { sw: 8, fa1: 6 } },
+    { t: 9.2,  x: 424, p: 'evade' },
     { t: 9.9,  x: 406, p: 'guard' },
-    { t: 10.5, x: 418, p: 'parry' },
+    { t: 10.5, x: 414, p: 'deflect' },
     { t: 11.2, x: 408, p: 'guard' },
     { t: 12.2, x: 490, p: 'retreat' },
     { t: 13.0, x: 530, p: 'guard' },
@@ -177,7 +181,7 @@
     const p = Object.fromEntries(KEYS.map((key, j) => [key, v[j + 1]]));
     const bob = Math.sin(TAU * idle.bob * t / LOOP + idle.phase);
     p.ft += bob * 5; p.fs -= bob * 5; p.bt -= bob * 3;
-    p.sw += Math.sin(TAU * idle.tip * t / LOOP + idle.phase * 2) * 5;
+    p.sw += Math.sin(TAU * idle.tip * t / LOOP + idle.phase * 2) * 3;
     p.fa2 += Math.sin(TAU * idle.tip * t / LOOP + idle.phase * 2 + 1) * 3;
     return { x: v[0], p };
   }
@@ -192,11 +196,10 @@
       group.appendChild(e);
       return e;
     };
-    const line = w => mk('line', { 'stroke-width': w, stroke: 'currentColor' });
     const limb = w => mk('line', { 'stroke-width': w, 'stroke-linecap': 'square', stroke: 'currentColor' });
     return {
       backArm: [limb(5), limb(5)], backLeg: [limb(6), limb(6)],
-      torso: line(9), frontLeg: [limb(6), limb(6)], frontArm: [limb(5), limb(5)],
+      torso: mk('polygon', { fill: 'currentColor' }), frontLeg: [limb(6), limb(6)], frontArm: [limb(5), limb(5)],
       head: mk('rect', { width: 10, height: 10, fill: 'currentColor' }),
       sword: mk('path', { 'stroke-width': 1.2, stroke: 'currentColor', fill: 'none' }),
       guard: mk('line', { 'stroke-width': 1.4, stroke: 'currentColor' }),
@@ -231,16 +234,23 @@
 
     seg(f.backLeg[0], [0, 0], bl[0]);  seg(f.backLeg[1], bl[0], bl[1]);
     seg(f.frontLeg[0], [0, 0], fl[0]); seg(f.frontLeg[1], fl[0], fl[1]);
-    seg(f.torso, [0, 3], sh);
+    // 몸통: 어깨는 넓고 허리는 좁은 역삼각형
+    const n = [Math.cos(rad(p.lean)), Math.sin(rad(p.lean))];
+    const top = [sh[0] + n[1] * 1.5, sh[1] - n[0] * 1.5];
+    const torsoPts = [
+      [top[0] + n[0] * 9, top[1] + n[1] * 9], [top[0] - n[0] * 9, top[1] - n[1] * 9],
+      [-n[0] * 2, 3 - n[1] * 2], [n[0] * 2, 3 + n[1] * 2],
+    ];
+    f.torso.setAttribute('points', torsoPts.map(([x, y]) => `${X(x)},${Y(y)}`).join(' '));
     seg(f.backArm[0], sh, ba[0]);  seg(f.backArm[1], ba[0], ba[1]);
     seg(f.frontArm[0], sh, fa[0]); seg(f.frontArm[1], fa[0], fa[1]);
 
-    // 칼: 휘두르는 속도만큼 살짝 휘어지는 얇은 곡선
+    // 칼: 움직이는 속도만큼 살짝 휘어지는 얇은 곡선
     const hand = fa[1], [sx, sy] = fwd(p.sw);
     const tip = [hand[0] + sx * L.sword, hand[1] + sy * L.sword];
     const vel = f.prevSw === null ? 0 : p.sw - f.prevSw;
     f.prevSw = p.sw;
-    const bend = clamp(-vel * 1.6, -9, 9) + 1.5;
+    const bend = clamp(-vel * 0.8, -5, 5) + 1.5;
     const mid = [(hand[0] + tip[0]) / 2 - sy * bend, (hand[1] + tip[1]) / 2 + sx * bend];
     f.sword.setAttribute('d', `M${X(hand[0])},${Y(hand[1])} Q${X(mid[0])},${Y(mid[1])} ${X(tip[0])},${Y(tip[1])}`);
     seg(f.guard, [hand[0] - sy * 4, hand[1] + sx * 4], [hand[0] + sy * 4, hand[1] - sx * 4]);

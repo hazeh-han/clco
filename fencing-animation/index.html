@@ -250,15 +250,17 @@
       group.appendChild(e);
       return e;
     };
-    const limb = w => mk('line', { 'stroke-width': w, 'stroke-linecap': 'square', stroke: 'currentColor' });
+    // 팔·다리: 꺾인 선 하나로 그려서 무릎·팔꿈치가 매끈하게 이어짐
+    const limb = w => mk('polyline', { 'stroke-width': w, 'stroke-linecap': 'square', 'stroke-linejoin': 'round', stroke: 'currentColor', fill: 'none' });
     return {
-      backArm: [limb(5), limb(5)], backLeg: [limb(6), limb(6)],
-      torso: mk('polygon', { fill: 'currentColor' }), frontLeg: [limb(6), limb(6)], frontArm: [limb(5), limb(5)],
+      backArm: limb(5), backLeg: limb(6),
+      torso: mk('polygon', { fill: 'currentColor' }), frontLeg: limb(6), frontArm: limb(5),
       head: mk('rect', { width: 10, height: 10, fill: 'currentColor' }),
       sword: mk('path', { 'stroke-width': 1.2, stroke: 'currentColor', fill: 'none' }),
       guard: mk('line', { 'stroke-width': 1.4, stroke: 'currentColor' }),
     };
   }
+  const SHOULDER = 8, WAIST = 5;   // 몸통 윗변·아랫변 절반 너비
   const setLine = (el, x1, y1, x2, y2) => {
     el.setAttribute('x1', x1); el.setAttribute('y1', y1);
     el.setAttribute('x2', x2); el.setAttribute('y2', y2);
@@ -286,18 +288,19 @@
     };
     const fa = arm(p.fa1, p.fa2), ba = arm(p.ba1, p.ba2);
 
-    seg(f.backLeg[0], [0, 0], bl[0]);  seg(f.backLeg[1], bl[0], bl[1]);
-    seg(f.frontLeg[0], [0, 0], fl[0]); seg(f.frontLeg[1], fl[0], fl[1]);
-    // 몸통: 어깨는 넓고 허리는 좁은 역삼각형
+    const chain = (el, pts) => el.setAttribute('points', pts.map(([x, y]) => `${X(x)},${Y(y)}`).join(' '));
+    chain(f.backLeg, [[0, 0], bl[0], bl[1]]);
+    chain(f.frontLeg, [[0, 0], fl[0], fl[1]]);
+    // 몸통: 어깨(윗변)가 허리(아랫변)보다 조금 넓은 사다리꼴
     const n = [Math.cos(rad(p.lean)), Math.sin(rad(p.lean))];
     const top = [sh[0] + n[1] * 1.5, sh[1] - n[0] * 1.5];
     const torsoPts = [
-      [top[0] + n[0] * 9, top[1] + n[1] * 9], [top[0] - n[0] * 9, top[1] - n[1] * 9],
-      [-n[0] * 2, 3 - n[1] * 2], [n[0] * 2, 3 + n[1] * 2],
+      [top[0] + n[0] * SHOULDER, top[1] + n[1] * SHOULDER], [top[0] - n[0] * SHOULDER, top[1] - n[1] * SHOULDER],
+      [-n[0] * WAIST, 3 - n[1] * WAIST], [n[0] * WAIST, 3 + n[1] * WAIST],
     ];
     f.torso.setAttribute('points', torsoPts.map(([x, y]) => `${X(x)},${Y(y)}`).join(' '));
-    seg(f.backArm[0], sh, ba[0]);  seg(f.backArm[1], ba[0], ba[1]);
-    seg(f.frontArm[0], sh, fa[0]); seg(f.frontArm[1], fa[0], fa[1]);
+    chain(f.backArm, [sh, ba[0], ba[1]]);
+    chain(f.frontArm, [sh, fa[0], fa[1]]);
 
     // 칼: 빠르게 움직일수록 칼날이 뒤처지며 휘어짐
     const hand = fa[1], [sx, sy] = fwd(p.sw);
